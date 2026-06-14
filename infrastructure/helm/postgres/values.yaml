@@ -1,0 +1,19 @@
+# PostgreSQL for Hive Metastore
+global:
+  security:
+    allowInsecureImages: true
+image:
+  registry: public.ecr.aws
+  repository: bitnami/postgresql
+  tag: latest
+auth:
+  database: metastore
+  username: hive
+  password: hivepassword
+persistence:
+  size: 2Gi
+resources:
+  limits:
+    memory: 512Mi
+  requests:
+    memory: 256Mi

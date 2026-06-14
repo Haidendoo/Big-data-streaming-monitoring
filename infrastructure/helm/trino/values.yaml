@@ -1,0 +1,31 @@
+# Trino Configuration for Iceberg
+image:
+  repository: trinodb/trino
+  tag: "443"
+
+# Chạy Trino dạng single node để tiết kiệm RAM
+server:
+  workers: 0
+  coordinatorExtraConfig: ""
+
+# Cấu hình Iceberg Connector
+additionalCatalogs:
+  iceberg: |
+    connector.name=iceberg
+    iceberg.catalog.type=HIVE_METASTORE
+    hive.metastore.uri=thrift://hive-metastore:9083
+    hive.s3.endpoint=http://minio.lakehouse.svc.cluster.local:9000
+    hive.s3.aws-access-key=admin
+    hive.s3.aws-secret-key=password123
+    hive.s3.path-style-access=true
+
+# Giới hạn tài nguyên cho máy 16GB
+service:
+  type: LoadBalancer
+  port: 8888
+
+resources:
+  limits:
+    memory: 3Gi
+  requests:
+    memory: 2Gi

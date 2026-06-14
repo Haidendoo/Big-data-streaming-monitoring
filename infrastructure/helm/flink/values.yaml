@@ -1,0 +1,34 @@
+# Flink Kubernetes Operator / Session Cluster Configuration
+image:
+  repository: flink
+  tag: 1.17.1-scala_2.12-java11
+  pullPolicy: IfNotPresent
+
+jobmanager:
+  replicaCount: 1
+  resources:
+    limits:
+      memory: "1024Mi"
+      cpu: "0.5"
+    requests:
+      memory: "512Mi"
+      cpu: "0.2"
+
+taskmanager:
+  replicaCount: 2
+  resources:
+    limits:
+      memory: "1024Mi"
+      cpu: "0.5"
+    requests:
+      memory: "512Mi"
+      cpu: "0.2"
+  numberOfTaskSlots: 2
+
+# Configuration for S3/Minio access
+flinkConfiguration:
+  s3.endpoint: http://minio.lakehouse.svc.cluster.local:9000
+  s3.access-key: admin
+  s3.secret-key: password123
+  s3.path-style-access: "true"
+  rest.port: "8081"

@@ -1,0 +1,13 @@
+# Global values for the platform
+ingress:
+  enabled: true
+  className: "traefik" # Mặc định của k3s là traefik
+  hosts:
+    - host: lakehouse.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+storageClass:
+  name: local-path
+  provisioner: rancher.io/local-path

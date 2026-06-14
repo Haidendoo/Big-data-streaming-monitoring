@@ -1,0 +1,36 @@
+# NiFi Configuration for cetic/nifi - Single Node
+replicaCount: 1
+
+# Resources
+resources:
+  limits:
+    memory: 2Gi
+  requests:
+    memory: 1Gi
+
+# Persistence
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: "local-path"
+
+# NiFi properties (JVM and other settings)
+# For cetic/nifi, JVM heap is often set via nifi.jvm.heap.xmx
+nifi:
+  jvm:
+    heap:
+      xmx: 1G
+      xms: 1G
+
+# Fix ZooKeeper image pull issue
+zookeeper:
+  enabled: true
+  image:
+    registry: public.ecr.aws
+    repository: bitnami/zookeeper
+    tag: latest
+  resources:
+    limits:
+      memory: 256Mi
+    requests:
+      memory: 128Mi

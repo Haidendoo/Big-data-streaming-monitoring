@@ -1,0 +1,19 @@
+# Kafka UI Configuration
+envs:
+  config:
+    kafka:
+      clusters:
+        - name: vdt-cluster
+          bootstrapServers: kafka.streaming.svc.cluster.local:9092
+    auth:
+      type: disabled
+
+resources:
+  limits:
+    memory: 512Mi
+  requests:
+    memory: 256Mi
+
+service:
+  type: LoadBalancer
+  port: 8080

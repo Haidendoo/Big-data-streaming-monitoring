@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hive-metastore
+  namespace: lakehouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hive-metastore
+  template:
+    metadata:
+      labels:
+        app: hive-metastore
+    spec:
+      containers:
+      - name: hive-metastore
+        image: ghcr.io/getindata/hive-metastore:3.1.2
+        env:
+        - name: DB_DRIVER
+          value: postgres
+        - name: DB_URL
+          value: jdbc:postgresql://hive-db-postgresql.lakehouse.svc.cluster.local:5432/metastore
+        - name: DB_USER
+          value: hive
+        - name: DB_PASS
+          value: hivepassword
+        - name: SCHEMA_COMMAND
+          value: upgrade
+        ports:
+        - containerPort: 9083
+          name: thrift
+        resources:
+          limits:
+            memory: 800Mi
+          requests:
+            memory: 400Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hive-metastore
+  namespace: lakehouse
+spec:
+  selector:
+    app: hive-metastore
+  ports:
+  - port: 9083
+    targetPort: 9083
+    name: thrift

@@ -1,0 +1,20 @@
+<servers>
+    <server>
+        <timestamp>2024-05-20T10:00:00Z</timestamp>
+        <server_name>prod-web-01</server_name>
+        <ip>192.168.1.10</ip>
+        <cpu>45.5</cpu>
+        <ram>62.1</ram>
+        <disk>12.5</disk>
+        <io>1.2</io>
+    </server>
+    <server>
+        <timestamp>2024-05-20T10:00:00Z</timestamp>
+        <server_name>prod-db-01</server_name>
+        <ip>192.168.1.20</ip>
+        <cpu>15.2</cpu>
+        <ram>85.4</ram>
+        <disk>45.8</disk>
+        <io>5.6</io>
+    </server>
+</servers>

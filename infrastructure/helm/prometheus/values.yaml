@@ -1,0 +1,18 @@
+# Prometheus Values
+server:
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      memory: 256Mi
+
+# Grafana Datasources Configuration
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus-server.monitoring.svc.cluster.local
+      access: proxy
+      isDefault: true

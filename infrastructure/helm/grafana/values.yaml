@@ -1,0 +1,11 @@
+adminPassword: admin
+service:
+  type: LoadBalancer
+  port: 80
+persistence:
+  enabled: false # Để tiết kiệm tài nguyên cho máy 16GB
+resources:
+  limits:
+    memory: 512Mi
+  requests:
+    memory: 256Mi

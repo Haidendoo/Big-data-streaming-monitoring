@@ -1,0 +1,53 @@
+# Minio Standalone Configuration - Maximum Resource Efficiency
+global:
+  security:
+    allowInsecureImages: true
+mode: standalone
+image:
+  registry: public.ecr.aws
+  repository: bitnami/minio
+  tag: 2024.12.18
+
+statefulset:
+  replicaCount: 1
+
+auth:
+  rootUser: admin
+  rootPassword: password123
+
+# Disable dedicated console pod
+console:
+  enabled: false
+
+# Enable embedded browser and set port
+extraEnvVars:
+  - name: MINIO_BROWSER
+    value: "on"
+  - name: MINIO_CONSOLE_PORT_NUMBER
+    value: "9001"
+
+extraArgs:
+  - --console-address
+  - :9001
+
+# Explicitly expose port 9001 in container
+extraContainerPorts:
+  - name: console
+    containerPort: 9001
+    protocol: TCP
+
+service:
+  type: LoadBalancer
+  ports:
+    api: 9000
+    console: 9001 # This will use the name 'console' which matches extraContainerPorts
+  extraPorts:
+    - name: console-alt
+      port: 9001
+      targetPort: 9001
+
+resources:
+  limits:
+    memory: 512Mi
+  requests:
+    memory: 256Mi
