@@ -1,34 +1,27 @@
-# Kafka KRaft Configuration (No ZooKeeper)
+# Kafka Apache Image Configuration
 global:
   security:
     allowInsecureImages: true
-replicaCount: 3
+replicaCount: 1
 image:
-  registry: public.ecr.aws
-  repository: bitnami/kafka
+  registry: docker.io
+  repository: apache/kafka
   tag: latest
 
-# Kích hoạt KRaft
+# Simple KRaft for local dev
 kraft:
   enabled: true
-
-# Tắt ZooKeeper để tiết kiệm tài nguyên
 zookeeper:
   enabled: false
 
 persistence:
-  size: 5Gi
+  size: 2Gi
 
-# Điều chỉnh tài nguyên cho máy 16GB RAM
 resources:
   limits:
     memory: 768Mi
   requests:
     memory: 512Mi
 
-# Tối ưu JVM heap size (quan trọng để tránh OOM)
-heapOpts: "-Xmx512M -Xms512M"
-
-# Cho phép truy cập từ bên ngoài
-externalAccess:
-  enabled: false
+# Overwrite entrypoint for official image if needed
+# but apache/kafka:latest works well with standard envs

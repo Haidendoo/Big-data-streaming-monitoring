@@ -15,18 +15,16 @@ spec:
     spec:
       containers:
       - name: hive-metastore
-        image: ghcr.io/getindata/hive-metastore:3.1.2
+        image: bitsondatadev/hive-metastore:latest
         env:
         - name: DB_DRIVER
-          value: postgres
+          value: "postgres"
         - name: DB_URL
-          value: jdbc:postgresql://hive-db-postgresql.lakehouse.svc.cluster.local:5432/metastore
+          value: "jdbc:postgresql://hive-db-postgresql:5432/metastore"
         - name: DB_USER
-          value: hive
+          value: "hive"
         - name: DB_PASS
-          value: hivepassword
-        - name: SCHEMA_COMMAND
-          value: upgrade
+          value: "password123"
         ports:
         - containerPort: 9083
           name: thrift

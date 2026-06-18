@@ -1,17 +1,30 @@
-# PostgreSQL for Hive Metastore
+# PostgreSQL Official Image Configuration
 global:
   security:
     allowInsecureImages: true
 image:
-  registry: public.ecr.aws
-  repository: bitnami/postgresql
-  tag: latest
+  registry: docker.io
+  repository: postgres
+  tag: 16-alpine
+
+# Map official env vars
+primary:
+  extraEnvVars:
+    - name: POSTGRES_USER
+      value: "hive"
+    - name: POSTGRES_PASSWORD
+      value: "password123"
+    - name: POSTGRES_DB
+      value: "metastore"
+
 auth:
   database: metastore
   username: hive
-  password: hivepassword
+  password: password123
+
 persistence:
   size: 2Gi
+
 resources:
   limits:
     memory: 512Mi

@@ -1,40 +1,43 @@
-# Server Monitoring Lakehouse
+# Server Monitoring Lakehouse Platform
 
-Dự án xây dựng hệ thống thu thập và xử lý dữ liệu giám sát server theo kiến trúc Lakehouse (Iceberg, Minio, Flink, Trino).
+Hệ thống giám sát máy chủ tập trung sử dụng kiến trúc Lakehouse (Minio, Iceberg, Trino) tích hợp NiFi, Kafka, Flink và Monitoring Stack.
 
-## 📁 Cấu trúc thư mục
-- `infrastructure/`: Chứa k3d config, Helm charts và scripts triển khai hạ tầng.
-- `nifi/`: Chứa cấu hình luồng thu thập dữ liệu (SFTP -> Minio/Kafka).
-- `flink/`: Mã nguồn Job Flink xử lý file XML/CSV và ghi vào Iceberg.
-- `catalogs/`: Định nghĩa schema và catalogs cho Trino/Iceberg.
-- `monitoring/`: Cấu hình Prometheus và Grafana để quan sát hệ thống.
+## 🚀 Hướng dẫn khởi chạy nhanh
 
-## 🚀 Hướng dẫn nhanh
+Để dựng toàn bộ hạ tầng (Cluster k3d, Storage, Streaming, SQL, Monitoring):
 
-### 1. Khởi tạo hạ tầng
-Di chuyển vào thư mục dự án và chạy bootstrap:
 ```bash
-cd server-monitoring-lakehouse
-chmod +x infrastructure/scripts/*.sh
+chmod +x infrastructure/scripts/bootstrap.sh
 ./infrastructure/scripts/bootstrap.sh
 ```
 
-### 2. Kiểm tra dịch vụ
+## 🌐 Thông tin truy cập các dịch vụ
+
+Tất cả các dịch vụ đều được cấu hình để truy cập trực tiếp từ máy Host thông qua `localhost`.
+
+| Dịch vụ | Địa chỉ truy cập | Tài khoản / Mật khẩu |
+| :--- | :--- | :--- |
+| **NiFi (Ingestion)** | [https://localhost:8443/nifi](https://localhost:8443/nifi) | `admin` / `password123456` |
+| **Minio (Storage)** | [http://localhost:9001](http://localhost:9001) | `admin` / `password123` |
+| **Grafana (Dashboards)**| [http://localhost:3000](http://localhost:3000) | `admin` / *Lấy lệnh bên dưới* |
+| **Kafka UI** | [http://localhost:9080](http://localhost:9080) | Không có |
+| **Trino (SQL)** | [http://localhost:8888](http://localhost:8888) | User: `admin` |
+| **Flink UI** | [http://localhost:8081](http://localhost:8081) | Không có |
+
+> **Lưu ý NiFi:** Phải dùng **HTTPS**. Trình duyệt sẽ báo cảnh báo bảo mật, hãy chọn "Advanced" -> "Proceed to localhost".
+
+## 🔑 Lệnh lấy mật khẩu Grafana
 ```bash
-kubectl get pods -A
+kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
 ```
 
-### 3. Truy cập UI
-- **Minio Console:** http://localhost:9001
-- **NiFi UI:** https://localhost:8443
-- **Trino UI:** http://localhost:8888
-- **Flink UI:** http://localhost:8081
+## 🏗️ Cấu trúc hạ tầng (Standalone - No Bitnami)
+Hệ thống đã được tối ưu hóa cho môi trường mạng hạn chế:
+- **Official Images:** Sử dụng ảnh gốc từ Docker Hub (`apache/nifi`, `apache/kafka`, `postgres:alpine`).
+- **Network Fix:** Tự động cấu hình MTU 1400 trong script bootstrap để tránh đứt kết nối.
+- **Permanent Manifests:** Các file cấu hình nằm tại `infrastructure/helm/*/manifests.yaml`.
 
-## 🛠️ Công nghệ sử dụng
-- **Orchestration:** k3s/k3d
-- **Ingestion:** Apache NiFi
-- **Streaming:** Apache Kafka (KRaft mode)
-- **Processing:** Apache Flink
-- **Table Format:** Apache Iceberg
-- **Query Engine:** Trino
-- **Storage:** Minio (S3 API)
+## 🛠️ Xóa toàn bộ Cluster
+```bash
+k3d cluster delete vdt-lakehouse
+```
