@@ -20,7 +20,7 @@ gantt
     section Phase 4: Lakehouse Storage
     Tạo Iceberg Schema qua Trino          :done, 2026-06-19, 1d
     section Phase 5: Processing (Flink)
-    Phát triển Flink Parser (Java/S3)     :2026-06-21, 2d
+    Phát triển Flink Parser (Java/S3)     :done, 2026-06-21, 2d
     Đóng gói & Deploy Flink Job           :2026-06-23, 1d
     section Phase 6: Serving (Trino)
     Kiểm tra Query & Time-travel SQL      :2026-06-24, 1d
