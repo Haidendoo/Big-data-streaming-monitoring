@@ -18,6 +18,9 @@ spec:
       - name: jobmanager
         image: flink:1.18.1-java11
         args: ["jobmanager"]
+        env:
+        - name: JOB_MANAGER_RPC_ADDRESS
+          value: flink-jobmanager
         ports:
         - containerPort: 6123
           name: rpc

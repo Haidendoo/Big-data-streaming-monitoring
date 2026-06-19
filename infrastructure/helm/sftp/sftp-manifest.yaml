@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sftp
+  namespace: ingestion
+spec:
+  type: ClusterIP
+  selector:
+    app: sftp
+  ports:
+  - port: 22
+    targetPort: 22
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sftp
+  namespace: ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sftp
+  template:
+    metadata:
+      labels:
+        app: sftp
+    spec:
+      containers:
+      - name: sftp
+        image: atmoz/sftp:latest
+        args: ["sftpuser:password123:::upload"]
+        ports:
+        - containerPort: 22
+        resources:
+          limits:
+            memory: 256Mi
+            cpu: "0.2"
+          requests:
+            memory: 128Mi
+            cpu: "0.1"
+        securityContext:
+          capabilities:
+            add: ["SYS_CHROOT"]

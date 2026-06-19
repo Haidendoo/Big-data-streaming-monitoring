@@ -6,7 +6,8 @@ image:
 # Chạy Trino dạng single node để tiết kiệm RAM
 server:
   workers: 0
-  coordinatorExtraConfig: ""
+  coordinatorExtraConfig: |
+    node-scheduler.include-coordinator=true
 
 # Cấu hình Iceberg Connector
 additionalCatalogs:

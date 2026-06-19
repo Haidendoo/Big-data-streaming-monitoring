@@ -1,0 +1,13 @@
+# Flink build outputs
+flink/target/
+flink/dependency-reduced-pom.xml
+
+# IDE and Editor configs
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS temporary files
+.DS_Store
+Thumbs.db
