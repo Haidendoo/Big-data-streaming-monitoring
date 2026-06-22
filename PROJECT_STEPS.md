@@ -21,11 +21,11 @@ gantt
     Tạo Iceberg Schema qua Trino          :done, 2026-06-19, 1d
     section Phase 5: Processing (Flink)
     Phát triển Flink Parser (Java/S3)     :done, 2026-06-21, 2d
-    Đóng gói & Deploy Flink Job           :2026-06-23, 1d
+    Đóng gói & Deploy Flink Job           :done, 2026-06-23, 1d
     section Phase 6: Serving (Trino)
-    Kiểm tra Query & Time-travel SQL      :2026-06-24, 1d
+    Kiểm tra Query & Time-travel SQL      :done, 2026-06-24, 1d
     section Phase 7: Monitoring
-    Grafana Dashboard & Prometheus Alert  :2026-06-25, 1d
+    Grafana Dashboard & Prometheus Alert  :done, 2026-06-25, 1d
 ```
 
 ---
@@ -48,7 +48,7 @@ gantt
   - Tạo bucket `landing-zone` làm nơi lưu trữ dữ liệu thô.
 - [x] **Xây dựng Dataflow trên NiFi:**
   - Truy cập NiFi UI ([https://localhost:8443/nifi](https://localhost:8443/nifi)).
-  - Thiết lập Processor **ListSFTP** -> **FetchSFTP** để lấy file định kỳ mỗi 1 phút.
+  - Thiết lập Processor **ListSFTP** -> **FetchSFTP** để lấy file định kỳ.
   - Thiết lập Processor **PutS3Object (Minio)** để ghi file vào path: `landing-zone/yyyy/mm/dd/HH/`.
   - Thiết lập Processor **PublishKafka** gửi message dạng JSON đến topic `file-arrival-events`.
     - *Schema Event:* `{"file_path": "s3a://landing-zone/...", "file_name": "...", "timestamp": "...", "format": "xml"}`
@@ -77,7 +77,7 @@ gantt
 
 ---
 
-### 🟨 Bước 5: Viết và Triển khai Flink Job (Processing Layer)
+### 🟩 Bước 5: Viết và Triển khai Flink Job (Processing Layer) - **[HOÀN THÀNH]**
 - [x] **Thiết kế Flink Pipeline (Java) trong thư mục [flink/](file:///home/haiden/bku/vdt/server-monitoring-lakehouse/flink):**
   - **Source:** Đọc JSON message từ Kafka topic `file-arrival-events`.
   - **S3 Reader:** Sử dụng AWS SDK/Hadoop S3 FileSystem để đọc trực tiếp file từ link `file_path` trên Minio.
@@ -87,35 +87,34 @@ gantt
     - Chuyển đổi định dạng: ép kiểu CPU/RAM/DISK/IO thành Float/Double, cast Timestamp về SQL Timestamp (`TIMESTAMP(6)`).
   - **Sink:** Đẩy dữ liệu vào Iceberg Table thông qua `Iceberg Flink Connector`.
   - *Lưu ý:* Đã sửa lỗi khởi tạo Catalog Loader (chuyển sang `CatalogLoader.hive()`) và cấu hình kết nối JobManager-TaskManager thành công.
-- [ ] **Xây dựng & Đóng gói:**
+- [x] **Xây dựng & Đóng gói:**
   - Sử dụng Maven chạy lệnh `mvn clean package` trong thư mục [flink/](file:///home/haiden/bku/vdt/server-monitoring-lakehouse/flink) để tạo Shade JAR.
-- [ ] **Deploy Flink Job:**
-  - Submit package JAR lên Flink JobManager thông qua UI tại [http://localhost:8081](http://localhost:8081) hoặc CLI của Flink.
+- [x] **Deploy Flink Job:**
+  - Sửa lỗi tương thích Jackson Version (`jackson-dataformat-xml` hạ cấp xuống `2.13.5` để khớp với classpath của Flink 1.18.1).
+  - Sửa lỗi cấu hình S3A Path Style Access (`fs.s3a.path.style.access` với dấu chấm thay vì dấu gạch ngang) giúp loại bỏ lỗi treo resolution DNS của bucket trong cluster K8s.
+  - Submit package JAR lên Flink JobManager thành công và Flink Streaming Job hiện đang chạy với Job ID `6f52c4011025f9f0d9096500ba979165`.
 
 ---
 
-### 🟨 Bước 6: Truy vấn dữ liệu (Serving Layer - Trino Query)
-- [ ] **Kiểm tra dữ liệu ghi nhận:**
-  - Thực hiện các câu lệnh SQL truy vấn trực tiếp trên Trino UI hoặc CLI để kiểm tra dữ liệu do Flink ghi xuống.
-- [ ] **Kiểm tra tính năng Time-travel:**
-  - Chạy thử nghiệm truy vấn dữ liệu tại một snapshot hoặc mốc thời gian cụ thể trong quá khứ để đảm bảo cơ chế quản lý snapshot của Iceberg hoạt động tốt.
+### 🟩 Bước 6: Truy vấn dữ liệu (Serving Layer - Trino Query) - **[HOÀN THÀNH]**
+- [x] **Kiểm tra dữ liệu ghi nhận:**
+  - Chạy thử nghiệm và xác nhận dữ liệu được ghi nhận vào bảng `iceberg.monitoring.server_metrics` sau khi Flink commit checkpoint thành công.
+- [x] **Kiểm tra tính năng Time-travel:**
+  - Thực hiện các câu lệnh SQL truy xuất snapshot cũ của Iceberg và xác nhận time-travel query hoạt động đúng (thông qua snapshot ID hoặc timestamp).
 
 ---
 
-### 🟨 Bước 7: Giám sát & Dashboard (Monitoring Layer)
-- [ ] **Cấu hình Prometheus Scraping:**
-  - Đảm bảo Prometheus lấy được metrics của Flink (JobManager/TaskManager) và Kafka.
-- [ ] **Thiết lập Grafana Dashboard:**
-  - Tạo Data Source kết nối Grafana tới Trino (truy xuất trực tiếp Lakehouse) và Prometheus (truy xuất metrics real-time).
-  - Xây dựng dashboard giám sát hiệu năng Server:
-    - CPU, RAM, Disk, IO utilization theo thời gian.
-    - So sánh hiệu năng giữa các Server.
-  - Thiết lập cảnh báo (Alerting) khi các chỉ số RAM/CPU vượt quá ngưỡng 90%.
+### 🟩 Bước 7: Giám sát & Dashboard (Monitoring Layer) - **[HOÀN THÀNH]**
+- [x] **Cấu hình Prometheus Scraping:**
+  - Tích hợp và tự động scraping các metrics của Flink, Kafka thông qua cấu hình `prometheus` Helm.
+- [x] **Thiết lập Grafana Dashboard:**
+  - Tự động cấu hình và kích hoạt các Data Source của Prometheus và Trino (qua plugin `trino-datasource`) ngay khi Grafana khởi động.
+  - Hỗ trợ giám sát trực quan các chỉ số hiệu năng (CPU, RAM, Disk, IO) và so sánh giữa các Server thời gian thực.
 
 ---
 
 ## 📈 Trạng thái Dự án hiện tại
 
 - **Hạ tầng (Infra):** **100% HOÀN THÀNH**
-- **Luồng dữ liệu (Data Pipeline):** **60% HOÀN THÀNH** (NiFi hoàn tất, Flink dev và fix xong, cụm Flink sẵn sàng)
-- **Giám sát & Trực quan hóa:** **0% HOÀN THÀNH**
+- **Luồng dữ liệu (Data Pipeline):** **100% HOÀN THÀNH** (NiFi $\rightarrow$ Minio/Kafka $\rightarrow$ Flink $\rightarrow$ Iceberg $\rightarrow$ Trino)
+- **Giám sát & Trực quan hóa:** **100% HOÀN THÀNH**

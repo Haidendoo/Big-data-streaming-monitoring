@@ -81,11 +81,16 @@ public class Main implements Serializable {
                     // Setup Hadoop S3 FileSystem configuration inside Flink tasks
                     org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
                     conf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
-                    conf.set("fs.s3a.endpoint", "http://minio.lakehouse.svc.cluster.local:9000");
+                    conf.set("fs.s3a.endpoint", "minio.lakehouse.svc.cluster.local:9000");
                     conf.set("fs.s3a.access.key", "admin");
                     conf.set("fs.s3a.secret.key", "password123");
+                    conf.set("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
+                    conf.set("fs.s3a.path-style-access", "true");
                     conf.set("fs.s3a.path.style.access", "true");
                     conf.set("fs.s3a.connection.ssl.enabled", "false"); // Minio runs on HTTP
+                    conf.set("fs.s3a.connection.timeout", "5000");
+                    conf.set("fs.s3a.attempts.maximum", "3");
+                    conf.set("fs.s3a.endpoint.region", "us-east-1");
                     
                     org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(event.getFilePath());
                     org.apache.hadoop.fs.FileSystem fs = path.getFileSystem(conf);
@@ -142,16 +147,25 @@ public class Main implements Serializable {
         catalogProperties.put(CatalogProperties.URI, "thrift://hive-metastore.lakehouse.svc.cluster.local:9083");
         catalogProperties.put(CatalogProperties.WAREHOUSE_LOCATION, "s3a://landing-zone/lakehouse/");
         
-        // Iceberg AWS S3 file access settings
-        catalogProperties.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
-        catalogProperties.put("s3.endpoint", "http://minio.lakehouse.svc.cluster.local:9000");
-        catalogProperties.put("s3.access-key-id", "admin");
-        catalogProperties.put("s3.secret-access-key", "password123");
-        catalogProperties.put("s3.path-style-access", "true");
+        // Use HadoopFileIO to avoid AWS SDK v2 classpath issues
+        catalogProperties.put("io-impl", "org.apache.iceberg.hadoop.HadoopFileIO");
+
+        org.apache.hadoop.conf.Configuration hadoopConf = new org.apache.hadoop.conf.Configuration();
+        hadoopConf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+        hadoopConf.set("fs.s3a.endpoint", "minio.lakehouse.svc.cluster.local:9000");
+        hadoopConf.set("fs.s3a.access.key", "admin");
+        hadoopConf.set("fs.s3a.secret.key", "password123");
+        hadoopConf.set("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
+        hadoopConf.set("fs.s3a.path-style-access", "true");
+        hadoopConf.set("fs.s3a.path.style.access", "true");
+        hadoopConf.set("fs.s3a.connection.ssl.enabled", "false");
+        hadoopConf.set("fs.s3a.connection.timeout", "5000");
+        hadoopConf.set("fs.s3a.attempts.maximum", "3");
+        hadoopConf.set("fs.s3a.endpoint.region", "us-east-1");
 
         CatalogLoader catalogLoader = CatalogLoader.hive(
                 "hive_catalog",
-                new org.apache.hadoop.conf.Configuration(),
+                hadoopConf,
                 catalogProperties
         );
 
