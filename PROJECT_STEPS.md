@@ -80,14 +80,14 @@ gantt
 
 ---
 
-### 🟨 Bước 5: Phát triển & Triển khai luồng Speed Layer (Processing - Flink) - **[80% HOÀN THÀNH]**
+### 🟩 Bước 5: Phát triển & Triển khai luồng Speed Layer (Processing - Flink) - **[100% HOÀN THÀNH]**
 - [x] **Xây dựng Flink Streaming Parser:**
   - Đọc event từ topic `file-arrival-events`, tải file tương ứng từ MinIO `landing-zone`.
   - Parse XML/CSV tùy định dạng và map kiểu dữ liệu, cast Timestamp về SQL Timestamp.
   - [x] Đã hoàn thành code gốc đẩy dữ liệu thô sang bảng cũ `server_metrics` (Job ID: `6f52c4011025f9f0d9096500ba979165`).
   - [x] **Cập nhật luồng Realtime (Mới)**: Sửa code Flink parser để loại bỏ các thông tin tĩnh, chỉ map `server_id` và các metrics phần cứng, sau đó sink xuống bảng mới `Iceberg Log Thô (Fact - Ice_Raw)` thay vì bảng cũ.
-- [ ] **Đóng gói & Submit Job mới**:
-  - Đóng gói JAR Maven và deploy lại Flink Job mới lên cluster.
+- [x] **Đóng gói & Submit Job mới**:
+  - Đóng gói JAR Maven và deploy lại Flink Job mới lên cluster (Đã hoàn tất tự động hóa qua `setup-pipeline.sh`).
 
 ---
 
@@ -101,10 +101,10 @@ gantt
 
 ---
 
-### 🟥 Bước 7: Phân tách Serving & Giám sát Cảnh báo Đa kênh (Serving & Alerting Layer) - **[15% HOÀN THÀNH]**
+### 🟨 Bước 7: Phân tách Serving & Giám sát Cảnh báo Đa kênh (Serving & Alerting Layer) - **[40% HOÀN THÀNH]**
 - [ ] **Phân tách 2 Dashboards (Trino Serving):**
   - [x] Thiết lập Grafana Realtime Dashboard kết nối Trino truy vấn từ bảng cũ.
-  - [ ] Cập nhật Dashboard 1 để truy vấn từ bảng `Iceberg Log Thô` theo `server_id` mới.
+  - [x] Cập nhật Dashboard 1 để truy vấn từ bảng `Iceberg Log Thô` theo `server_id` mới (Đã hoàn tất cấu hình qua Helm upgrade values).
   - [ ] Thiết lập Dashboard 2 (BI Report) kết nối Trino truy vấn từ bảng `Iceberg KPI Tổng Hợp` báo cáo hiệu năng dài hạn theo Tỉnh/Trạm cho quản lý.
 - [ ] **Thiết lập Giám sát Hệ thống & Cấu hình Cảnh báo (Prometheus Alertmanager):**
   - [x] Prometheus tự động scraping metrics của Flink và Kafka.
@@ -115,5 +115,5 @@ gantt
 ## 📈 Trạng thái Dự án hiện tại
 
 - **Hạ tầng (Infra):** **100% HOÀN THÀNH**
-- **Luồng dữ liệu (Data Pipeline):** **65% HOÀN THÀNH** (NiFi $\rightarrow$ MinIO/Kafka hoàn tất, Flink Stream & Iceberg Schema đã cập nhật thành công theo cấu trúc thô mới dùng server_id, Flink CDC & Spark Batch chưa phát triển)
-- **Giám sát & Cảnh báo đa kênh:** **15% HOÀN THÀNH** (Prometheus scraping chạy tốt, Grafana Dashboard cần cập nhật theo schema mới, Alertmanager & các kênh cảnh báo chưa cấu hình)
+- **Luồng dữ liệu (Data Pipeline):** **80% HOÀN THÀNH** (NiFi $\rightarrow$ MinIO/Kafka $\rightarrow$ Flink $\rightarrow$ Iceberg Fact table hoàn tất chạy thực tế; Spark Batch và Airflow chưa phát triển)
+- **Giám sát & Cảnh báo đa kênh:** **40% HOÀN THÀNH** (Grafana Realtime Dashboard 1 đã hoàn tất chuyển sang dùng server_id thô, Alertmanager & các kênh cảnh báo chưa cấu hình)
