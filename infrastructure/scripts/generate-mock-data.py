@@ -8,11 +8,11 @@ import xml.etree.ElementTree as ET
 
 # Configuration
 SERVERS = [
-    {"name": "prod-web-01", "ip": "192.168.1.10"},
-    {"name": "prod-web-02", "ip": "192.168.1.11"},
-    {"name": "prod-db-01", "ip": "192.168.1.20"},
-    {"name": "prod-db-02", "ip": "192.168.1.21"},
-    {"name": "stage-app-01", "ip": "172.16.5.10"},
+    {"id": 101},
+    {"id": 102},
+    {"id": 103},
+    {"id": 104},
+    {"id": 105},
 ]
 
 OUTPUT_DIR = "/home/haiden/bku/vdt/server-monitoring-lakehouse/sample-data/generated"
@@ -24,8 +24,7 @@ def generate_metrics():
     for s in SERVERS:
         data.append({
             "timestamp": timestamp,
-            "server_name": s["name"],
-            "ip": s["ip"],
+            "server_id": s["id"],
             "cpu": round(random.uniform(5.0, 95.0), 1),
             "ram": round(random.uniform(10.0, 90.0), 1),
             "disk": round(random.uniform(20.0, 85.0), 1),
@@ -36,12 +35,11 @@ def generate_metrics():
 def write_csv(timestamp, data, filepath):
     with open(filepath, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(["timestamp", "server_name", "ip", "cpu", "ram", "disk", "io"])
+        writer.writerow(["timestamp", "server_id", "cpu", "ram", "disk", "io"])
         for row in data:
             writer.writerow([
                 row["timestamp"],
-                row["server_name"],
-                row["ip"],
+                row["server_id"],
                 row["cpu"],
                 row["ram"],
                 row["disk"],
@@ -53,8 +51,7 @@ def write_xml(timestamp, data, filepath):
     for row in data:
         server_el = ET.SubElement(root, "server")
         ET.SubElement(server_el, "timestamp").text = row["timestamp"]
-        ET.SubElement(server_el, "server_name").text = row["server_name"]
-        ET.SubElement(server_el, "ip").text = row["ip"]
+        ET.SubElement(server_el, "server_id").text = str(row["server_id"])
         ET.SubElement(server_el, "cpu").text = str(row["cpu"])
         ET.SubElement(server_el, "ram").text = str(row["ram"])
         ET.SubElement(server_el, "disk").text = str(row["disk"])

@@ -7,8 +7,7 @@ public class ServerMetric implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private Timestamp ts;
-    private String serverName;
-    private String ip;
+    private Integer serverId;
     private Double cpuUtil;
     private Double ramUtil;
     private Double diskUtil;
@@ -16,10 +15,9 @@ public class ServerMetric implements Serializable {
 
     public ServerMetric() {}
 
-    public ServerMetric(Timestamp ts, String serverName, String ip, Double cpuUtil, Double ramUtil, Double diskUtil, Double ioStat) {
+    public ServerMetric(Timestamp ts, Integer serverId, Double cpuUtil, Double ramUtil, Double diskUtil, Double ioStat) {
         this.ts = ts;
-        this.serverName = serverName;
-        this.ip = ip;
+        this.serverId = serverId;
         this.cpuUtil = cpuUtil;
         this.ramUtil = ramUtil;
         this.diskUtil = diskUtil;
@@ -34,20 +32,12 @@ public class ServerMetric implements Serializable {
         this.ts = ts;
     }
 
-    public String getServerName() {
-        return serverName;
+    public Integer getServerId() {
+        return serverId;
     }
 
-    public void setServerName(String serverName) {
-        this.serverName = serverName;
-    }
-
-    public String getIp() {
-        return ip;
-    }
-
-    public void setIp(String ip) {
-        this.ip = ip;
+    public void setServerId(Integer serverId) {
+        this.serverId = serverId;
     }
 
     public Double getCpuUtil() {
@@ -86,8 +76,7 @@ public class ServerMetric implements Serializable {
     public String toString() {
         return "ServerMetric{" +
                 "ts=" + ts +
-                ", serverName='" + serverName + '\'' +
-                ", ip='" + ip + '\'' +
+                ", serverId=" + serverId +
                 ", cpuUtil=" + cpuUtil +
                 ", ramUtil=" + ramUtil +
                 ", diskUtil=" + diskUtil +

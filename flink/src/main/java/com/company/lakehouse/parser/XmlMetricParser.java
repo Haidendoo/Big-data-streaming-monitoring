@@ -23,8 +23,7 @@ public class XmlMetricParser implements MetricParser {
                 Timestamp ts = Timestamp.from(instant);
                 metrics.add(new ServerMetric(
                         ts,
-                        s.getServerName(),
-                        s.getIp(),
+                        s.getServerId(),
                         s.getCpu(),
                         s.getRam(),
                         s.getDisk(),

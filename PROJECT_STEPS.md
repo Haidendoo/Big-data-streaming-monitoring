@@ -8,24 +8,28 @@ Tài liệu này tổng hợp toàn bộ các bước cần thực hiện để 
 
 ```mermaid
 gantt
-    title Tiến độ Dự án Server Monitoring Lakehouse
+    title Tiến độ Dự án Server Monitoring Lakehouse (Lambda & Medallion)
     dateFormat  YYYY-MM-DD
     section Phase 1: Infrastructure
     Khởi tạo k3s & Triển khai Services    :done, 2026-06-18, 1d
-    section Phase 2: Ingestion (NiFi)
-    Dựng Mock SFTP Server                 :done, 2026-06-19, 1d
-    Cấu hình Flow NiFi & Tạo Event Kafka  :done, 2026-06-19, 1d
-    section Phase 3: Messaging (Kafka)
-    Cấu hình Topic & Retention            :done, 2026-06-19, 1d
-    section Phase 4: Lakehouse Storage
-    Tạo Iceberg Schema qua Trino          :done, 2026-06-19, 1d
-    section Phase 5: Processing (Flink)
-    Phát triển Flink Parser (Java/S3)     :done, 2026-06-21, 2d
-    Đóng gói & Deploy Flink Job           :done, 2026-06-23, 1d
-    section Phase 6: Serving (Trino)
-    Kiểm tra Query & Time-travel SQL      :done, 2026-06-24, 1d
-    section Phase 7: Monitoring
-    Grafana Dashboard & Prometheus Alert  :done, 2026-06-25, 1d
+    section Phase 2: Ingestion & CDC
+    Dựng Mock SFTP & Flow NiFi            :done, 2026-06-19, 1d
+    MinIO Landing Retention (Lifecycle)   :active, 2026-06-20, 1d
+    Triển khai Flink CDC đồng bộ Dim      :active, 2026-06-20, 1d
+    section Phase 3: Messaging
+    Cấu hình Kafka Topic 3 partitions     :done, 2026-06-19, 1d
+    section Phase 4: Storage Layer
+    Cấu hình Trino Iceberg Catalog        :done, 2026-06-19, 1d
+    Khởi tạo Bảng Medallion (Raw/Dim/Gold):active, 2026-06-21, 1d
+    section Phase 5: Speed Layer (Flink)
+    Phát triển Flink Stream (Old Schema)  :done, 2026-06-21, 2d
+    Cập nhật Flink Stream (New Raw Table) :active, 2026-06-23, 1d
+    section Phase 6: Batch & Maintenance
+    Xây dựng Spark Batch (1h) & Airflow   :2026-06-24, 1d
+    DAG Compaction gộp file nhỏ           :2026-06-24, 1d
+    section Phase 7: Serving & Alerting
+    Trino Query & Realtime Dashboard      :active, 2026-06-25, 1d
+    Dashboard 2 BI & Alertmanager Đa Kênh  :2026-06-25, 1d
 ```
 
 ---
@@ -39,82 +43,77 @@ gantt
 
 ---
 
-### 🟩 Bước 2: Cấu hình Luồng Thu thập (Ingestion Layer - NiFi) - **[HOÀN THÀNH]**
+### 🟨 Bước 2: Cấu hình Luồng Thu thập & Đồng bộ (Ingestion & CDC Layer) - **[50% HOÀN THÀNH]**
 - [x] **Dựng Mock SFTP Server:**
   - Viết Manifest deploy một container SFTP đơn giản trong namespace `ingestion`.
   - Cấu hình tài khoản sftp, mount volume và tạo thư mục chứa metrics file (CSV/XML).
-- [x] **Khởi tạo Buckets trên Minio:**
-  - Truy cập Minio Console ([http://localhost:9001](http://localhost:9001)) hoặc dùng client `mc`.
-  - Tạo bucket `landing-zone` làm nơi lưu trữ dữ liệu thô.
+- [ ] **Khởi tạo Buckets trên MinIO & Lifecycle Retention:**
+  - [x] Tạo bucket `landing-zone` làm nơi lưu trữ dữ liệu thô.
+  - [ ] Thiết lập quy tắc **Object Lifecycle Expiration = 24h** để tự động xóa sạch file cũ, tối ưu I/O.
 - [x] **Xây dựng Dataflow trên NiFi:**
-  - Truy cập NiFi UI ([https://localhost:8443/nifi](https://localhost:8443/nifi)).
-  - Thiết lập Processor **ListSFTP** -> **FetchSFTP** để lấy file định kỳ.
-  - Thiết lập Processor **PutS3Object (Minio)** để ghi file vào path: `landing-zone/yyyy/mm/dd/HH/`.
-  - Thiết lập Processor **PublishKafka** gửi message dạng JSON đến topic `file-arrival-events`.
-    - *Schema Event:* `{"file_path": "s3a://landing-zone/...", "file_name": "...", "timestamp": "...", "format": "xml"}`
-- [x] **Xử lý lỗi (Error Handling):**
-  - Chuyển tiếp các file bị lỗi parse/upload sang folder `error/` trên SFTP hoặc Minio.
-- [x] **Lưu trữ cấu hình:**
-  - Export flow NiFi thành file JSON và lưu vào thư mục [nifi/flows/](file:///home/haiden/bku/vdt/server-monitoring-lakehouse/nifi/flows).
+  - Polling file từ SFTP mỗi 1 phút bằng **ListSFTP/FetchSFTP**.
+  - Đẩy file nguyên bản lên MinIO `landing-zone/yyyy/mm/dd/HH/`.
+  - Gửi event notification sang Kafka topic `file-arrival-events`.
+- [ ] **Đồng bộ Metadata bằng Flink CDC:**
+  - [ ] Triển khai Flink CDC giám sát DB cấu hình (`App_DB`).
+  - [ ] Tự động capture CDC events và đồng bộ gần realtime sang bảng danh mục (`Iceberg Cấu Hình - Dim`).
 
 ---
 
-### 🟩 Bước 3: Hàng đợi thông điệp (Messaging Layer - Kafka) - **[HOÀN THÀNH]**
+### 🟩 Bước 3: Hàng đợi thông điệp (Messaging Layer - Kafka) - **[100% HOÀN THÀNH]**
 - [x] **Cấu hình Kafka Topic:**
-  - Tạo topic `file-arrival-events` với tối thiểu 3 Partitions để tăng tính song song.
+  - Tạo topic `file-arrival-events` với 3 Partitions để nâng cao tính song song.
   - Cấu hình retention time của topic là 7 ngày (`cleanup.policy=delete`, `retention.ms=604800000`).
 - [x] **Kiểm tra trạng thái:**
-  - Truy cập Kafka UI ([http://localhost:9080](http://localhost:9080)) để kiểm chứng topic đã được khởi tạo thành công và theo dõi luồng message từ NiFi.
+  - Giám sát qua Kafka UI ([http://localhost:9080](http://localhost:9080)) để kiểm chứng luồng message từ NiFi hoạt động ổn định.
 
 ---
 
-### 🟩 Bước 4: Lưu trữ & Metadata (Lakehouse Storage - Iceberg + Minio + Hive) - **[HOÀN THÀNH]**
+### 🟩 Bước 4: Lưu trữ & Phân tầng Medallion (Storage & Metadata Layer - Iceberg + Minio + Hive) - **[100% HOÀN THÀNH]**
 - [x] **Cấu hình Trino Iceberg Catalog:**
-  - Đảm bảo Trino đã liên kết chính xác với Hive Metastore và Minio thông qua [values.yaml](file:///home/haiden/bku/vdt/server-monitoring-lakehouse/infrastructure/helm/trino/values.yaml).
-- [x] **Khởi tạo Iceberg Table:**
-  - Chạy file SQL [monitoring.sql](file:///home/haiden/bku/vdt/server-monitoring-lakehouse/catalogs/iceberg/monitoring.sql) trên Trino để tạo Table: `iceberg.monitoring.server_metrics`.
-  - Xác nhận bảng đã có định dạng lưu trữ cột `PARQUET` và phân vùng theo ngày `day(ts)`.
+  - Đồng bộ Trino, Hive Metastore và MinIO storage thông qua Helm values.
+- [x] **Khởi tạo các bảng Medallion:**
+  - [x] Đã tạo bảng cũ `server_metrics` để thử nghiệm luồng dữ liệu.
+  - [x] `Bảng Log Thô (Fact - Ice_Raw)`: Thiết kế lại theo schema mới (chỉ chứa `server_id` và các chỉ số đo đạc phần cứng) phân vùng theo ngày.
+  - [x] `Bảng Cấu Hình (Dim - Ice_Dim)`: Khởi tạo bảng danh mục cấu hình Tỉnh/Trạm.
+  - [x] `Bảng KPI Tổng Hợp (Gold - Ice_Final)`: Khởi tạo bảng lưu trữ dữ liệu KPI đã được tính toán làm giàu.
 
 ---
 
-### 🟩 Bước 5: Viết và Triển khai Flink Job (Processing Layer) - **[HOÀN THÀNH]**
-- [x] **Thiết kế Flink Pipeline (Java) trong thư mục [flink/](file:///home/haiden/bku/vdt/server-monitoring-lakehouse/flink):**
-  - **Source:** Đọc JSON message từ Kafka topic `file-arrival-events`.
-  - **S3 Reader:** Sử dụng AWS SDK/Hadoop S3 FileSystem để đọc trực tiếp file từ link `file_path` trên Minio.
-  - **Parser Engine:**
-    - Parse XML (sử dụng Jackson XML) hoặc CSV (sử dụng OpenCSV) tùy thuộc vào trường `format` trong event.
-  - **Data Mapping / Types Casting:**
-    - Chuyển đổi định dạng: ép kiểu CPU/RAM/DISK/IO thành Float/Double, cast Timestamp về SQL Timestamp (`TIMESTAMP(6)`).
-  - **Sink:** Đẩy dữ liệu vào Iceberg Table thông qua `Iceberg Flink Connector`.
-  - *Lưu ý:* Đã sửa lỗi khởi tạo Catalog Loader (chuyển sang `CatalogLoader.hive()`) và cấu hình kết nối JobManager-TaskManager thành công.
-- [x] **Xây dựng & Đóng gói:**
-  - Sử dụng Maven chạy lệnh `mvn clean package` trong thư mục [flink/](file:///home/haiden/bku/vdt/server-monitoring-lakehouse/flink) để tạo Shade JAR.
-- [x] **Deploy Flink Job:**
-  - Sửa lỗi tương thích Jackson Version (`jackson-dataformat-xml` hạ cấp xuống `2.13.5` để khớp với classpath của Flink 1.18.1).
-  - Sửa lỗi cấu hình S3A Path Style Access (`fs.s3a.path.style.access` với dấu chấm thay vì dấu gạch ngang) giúp loại bỏ lỗi treo resolution DNS của bucket trong cluster K8s.
-  - Submit package JAR lên Flink JobManager thành công và Flink Streaming Job hiện đang chạy với Job ID `6f52c4011025f9f0d9096500ba979165`.
+### 🟨 Bước 5: Phát triển & Triển khai luồng Speed Layer (Processing - Flink) - **[80% HOÀN THÀNH]**
+- [x] **Xây dựng Flink Streaming Parser:**
+  - Đọc event từ topic `file-arrival-events`, tải file tương ứng từ MinIO `landing-zone`.
+  - Parse XML/CSV tùy định dạng và map kiểu dữ liệu, cast Timestamp về SQL Timestamp.
+  - [x] Đã hoàn thành code gốc đẩy dữ liệu thô sang bảng cũ `server_metrics` (Job ID: `6f52c4011025f9f0d9096500ba979165`).
+  - [x] **Cập nhật luồng Realtime (Mới)**: Sửa code Flink parser để loại bỏ các thông tin tĩnh, chỉ map `server_id` và các metrics phần cứng, sau đó sink xuống bảng mới `Iceberg Log Thô (Fact - Ice_Raw)` thay vì bảng cũ.
+- [ ] **Đóng gói & Submit Job mới**:
+  - Đóng gói JAR Maven và deploy lại Flink Job mới lên cluster.
 
 ---
 
-### 🟩 Bước 6: Truy vấn dữ liệu (Serving Layer - Trino Query) - **[HOÀN THÀNH]**
-- [x] **Kiểm tra dữ liệu ghi nhận:**
-  - Chạy thử nghiệm và xác nhận dữ liệu được ghi nhận vào bảng `iceberg.monitoring.server_metrics` sau khi Flink commit checkpoint thành công.
-- [x] **Kiểm tra tính năng Time-travel:**
-  - Thực hiện các câu lệnh SQL truy xuất snapshot cũ của Iceberg và xác nhận time-travel query hoạt động đúng (thông qua snapshot ID hoặc timestamp).
+### 🟥 Bước 6: Phát triển luồng Batch Layer & Compaction (Airflow & Spark) - **[0% HOÀN THÀNH]**
+- [ ] **Xây dựng Spark Batch Job (1 giờ/lần):**
+  - Đọc delta dữ liệu từ `Bảng Log Thô (Fact)`, thực hiện `JOIN` với `Bảng Cấu Hình (Dim)` để tính toán KPI trung bình vùng miền.
+  - Làm giàu và ghi kết quả tổng hợp vào `Bảng KPI Tổng Hợp (Gold)`.
+- [ ] **Thiết lập Maintenance Compaction Job (00:00 hàng ngày):**
+  - Chạy định kỳ vào nửa đêm để gộp các file Parquet nhỏ phân mảnh của bảng Log Thô thành các file lớn nhằm tối ưu hóa I/O bằng cách gọi: `CALL catalog.system.rewrite_data_files(...)`.
+  - Lập lịch và tự động kích hoạt cả hai job Spark trên thông qua **Apache Airflow**.
 
 ---
 
-### 🟩 Bước 7: Giám sát & Dashboard (Monitoring Layer) - **[HOÀN THÀNH]**
-- [x] **Cấu hình Prometheus Scraping:**
-  - Tích hợp và tự động scraping các metrics của Flink, Kafka thông qua cấu hình `prometheus` Helm.
-- [x] **Thiết lập Grafana Dashboard:**
-  - Tự động cấu hình và kích hoạt các Data Source của Prometheus và Trino (qua plugin `trino-datasource`) ngay khi Grafana khởi động.
-  - Hỗ trợ giám sát trực quan các chỉ số hiệu năng (CPU, RAM, Disk, IO) và so sánh giữa các Server thời gian thực.
+### 🟥 Bước 7: Phân tách Serving & Giám sát Cảnh báo Đa kênh (Serving & Alerting Layer) - **[15% HOÀN THÀNH]**
+- [ ] **Phân tách 2 Dashboards (Trino Serving):**
+  - [x] Thiết lập Grafana Realtime Dashboard kết nối Trino truy vấn từ bảng cũ.
+  - [ ] Cập nhật Dashboard 1 để truy vấn từ bảng `Iceberg Log Thô` theo `server_id` mới.
+  - [ ] Thiết lập Dashboard 2 (BI Report) kết nối Trino truy vấn từ bảng `Iceberg KPI Tổng Hợp` báo cáo hiệu năng dài hạn theo Tỉnh/Trạm cho quản lý.
+- [ ] **Thiết lập Giám sát Hệ thống & Cấu hình Cảnh báo (Prometheus Alertmanager):**
+  - [x] Prometheus tự động scraping metrics của Flink và Kafka.
+  - [ ] Cấu hình Prometheus Alertmanager và định tuyến cảnh báo (Critical/Warning) đến: **Slack/Discord Webhooks**, **Telegram Bot**, **Email (SMTP)** và **Custom Webhooks** hỗ trợ tự phục hồi.
 
 ---
 
 ## 📈 Trạng thái Dự án hiện tại
 
 - **Hạ tầng (Infra):** **100% HOÀN THÀNH**
-- **Luồng dữ liệu (Data Pipeline):** **100% HOÀN THÀNH** (NiFi $\rightarrow$ Minio/Kafka $\rightarrow$ Flink $\rightarrow$ Iceberg $\rightarrow$ Trino)
-- **Giám sát & Trực quan hóa:** **100% HOÀN THÀNH**
+- **Luồng dữ liệu (Data Pipeline):** **65% HOÀN THÀNH** (NiFi $\rightarrow$ MinIO/Kafka hoàn tất, Flink Stream & Iceberg Schema đã cập nhật thành công theo cấu trúc thô mới dùng server_id, Flink CDC & Spark Batch chưa phát triển)
+- **Giám sát & Cảnh báo đa kênh:** **15% HOÀN THÀNH** (Prometheus scraping chạy tốt, Grafana Dashboard cần cập nhật theo schema mới, Alertmanager & các kênh cảnh báo chưa cấu hình)

@@ -59,7 +59,7 @@ dashboard = {
           },
           "format": 0,
           "rawQuery": True,
-          "rawSql": "SELECT ts AS time, cpu_util AS value, server_name AS metric FROM iceberg.monitoring.server_metrics WHERE $__timeFilter(ts) ORDER BY ts",
+          "rawSql": "SELECT ts AS time, cpu_util AS value, CAST(server_id AS VARCHAR) AS metric FROM iceberg.monitoring.raw_sftp_table WHERE $__timeFilter(ts) ORDER BY ts",
           "refId": "A"
         }
       ],
@@ -97,7 +97,7 @@ dashboard = {
           },
           "format": 0,
           "rawQuery": True,
-          "rawSql": "SELECT ts AS time, ram_util AS value, server_name AS metric FROM iceberg.monitoring.server_metrics WHERE $__timeFilter(ts) ORDER BY ts",
+          "rawSql": "SELECT ts AS time, ram_util AS value, CAST(server_id AS VARCHAR) AS metric FROM iceberg.monitoring.raw_sftp_table WHERE $__timeFilter(ts) ORDER BY ts",
           "refId": "A"
         }
       ],
@@ -135,7 +135,7 @@ dashboard = {
           },
           "format": 0,
           "rawQuery": True,
-          "rawSql": "SELECT ts AS time, disk_util AS value, server_name AS metric FROM iceberg.monitoring.server_metrics WHERE $__timeFilter(ts) ORDER BY ts",
+          "rawSql": "SELECT ts AS time, disk_util AS value, CAST(server_id AS VARCHAR) AS metric FROM iceberg.monitoring.raw_sftp_table WHERE $__timeFilter(ts) ORDER BY ts",
           "refId": "A"
         }
       ],
@@ -173,7 +173,7 @@ dashboard = {
           },
           "format": 0,
           "rawQuery": True,
-          "rawSql": "SELECT ts AS time, io_stat AS value, server_name AS metric FROM iceberg.monitoring.server_metrics WHERE $__timeFilter(ts) ORDER BY ts",
+          "rawSql": "SELECT ts AS time, io_stat AS value, CAST(server_id AS VARCHAR) AS metric FROM iceberg.monitoring.raw_sftp_table WHERE $__timeFilter(ts) ORDER BY ts",
           "refId": "A"
         }
       ],
@@ -210,7 +210,7 @@ dashboard = {
           },
           "format": 1,
           "rawQuery": True,
-          "rawSql": "SELECT ts, server_name, ip, cpu_util, ram_util, disk_util, io_stat FROM (\n  SELECT *,\n         ROW_NUMBER() OVER (PARTITION BY server_name ORDER BY ts DESC) as rn\n  FROM iceberg.monitoring.server_metrics\n) WHERE rn = 1 ORDER BY server_name",
+          "rawSql": "SELECT ts, server_id, cpu_util, ram_util, disk_util, io_stat FROM (\n  SELECT *,\n         ROW_NUMBER() OVER (PARTITION BY server_id ORDER BY ts DESC) as rn\n  FROM iceberg.monitoring.raw_sftp_table\n) WHERE rn = 1 ORDER BY server_id",
           "refId": "A"
         }
       ]

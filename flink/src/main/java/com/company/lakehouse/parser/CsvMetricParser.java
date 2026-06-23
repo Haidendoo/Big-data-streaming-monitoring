@@ -25,19 +25,18 @@ public class CsvMetricParser implements MetricParser {
                 if (i == 0 && (row[0].equalsIgnoreCase("timestamp") || row[0].contains("timestamp"))) {
                     continue;
                 }
-                if (row.length < 7) {
+                if (row.length < 6) {
                     continue;
                 }
                 try {
                     Instant instant = Instant.parse(row[0].trim());
                     Timestamp ts = Timestamp.from(instant);
-                    String serverName = row[1].trim();
-                    String ip = row[2].trim();
-                    Double cpu = Double.parseDouble(row[3].trim());
-                    Double ram = Double.parseDouble(row[4].trim());
-                    Double disk = Double.parseDouble(row[5].trim());
-                    Double io = Double.parseDouble(row[6].trim());
-                    metrics.add(new ServerMetric(ts, serverName, ip, cpu, ram, disk, io));
+                    Integer serverId = Integer.parseInt(row[1].trim());
+                    Double cpu = Double.parseDouble(row[2].trim());
+                    Double ram = Double.parseDouble(row[3].trim());
+                    Double disk = Double.parseDouble(row[4].trim());
+                    Double io = Double.parseDouble(row[5].trim());
+                    metrics.add(new ServerMetric(ts, serverId, cpu, ram, disk, io));
                 } catch (Exception e) {
                     // Log error and continue to parse other rows
                     System.err.println("Error parsing row: " + String.join(",", row) + " - " + e.getMessage());

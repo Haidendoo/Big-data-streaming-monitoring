@@ -97,6 +97,13 @@ chmod +x infrastructure/scripts/deploy-all.sh
 ./infrastructure/scripts/deploy-all.sh
 ```
 
+### Bước 3: Khởi tạo luồng xử lý và bảng dữ liệu (Setup Pipeline)
+Sau khi hạ tầng deploy xong, chạy script setup để biên dịch Flink job, submit Flink, cấu hình tự động cho NiFi và khởi tạo các bảng Iceberg trong Trino:
+```bash
+chmod +x infrastructure/scripts/setup-pipeline.sh
+./infrastructure/scripts/setup-pipeline.sh
+```
+
 ---
 
 ## 🌐 Thông tin cổng truy cập các dịch vụ
@@ -141,7 +148,7 @@ Bạn có thể truy vấn bảng Iceberg trực tiếp bằng Trino.
 ```bash
 python3 -c "
 import requests
-sql = 'SELECT count(*) FROM iceberg.monitoring.server_metrics'
+sql = 'SELECT count(*) FROM iceberg.monitoring.raw_sftp_table'
 r = requests.post('http://localhost:8888/v1/statement', data=sql, headers={'X-Trino-User': 'admin'})
 print('Tổng số bản ghi trong Iceberg Table:', r.json()['data'][0][0])
 "
@@ -153,7 +160,7 @@ Liệt kê danh sách các Snapshots (các thời điểm lịch sử dữ liệ
 ```bash
 python3 -c "
 import requests
-sql = 'SELECT snapshot_id, committed_at FROM iceberg.monitoring.server_metrics\$snapshots ORDER BY committed_at DESC'
+sql = 'SELECT snapshot_id, committed_at FROM iceberg.monitoring.raw_sftp_table\$snapshots ORDER BY committed_at DESC'
 r = requests.post('http://localhost:8888/v1/statement', data=sql, headers={'X-Trino-User': 'admin'})
 for row in r.json().get('data', []):
     print(f'Snapshot ID: {row[0]} | Thời gian commit: {row[1]}')
@@ -165,7 +172,7 @@ python3 -c "
 import requests
 # Thay thế SNAPSHOT_ID_DUMMY bằng Snapshot ID thực tế lấy ở bước trên
 snapshot_id = 'SNAPSHOT_ID_DUMMY'
-sql = f'SELECT count(*) FROM iceberg.monitoring.server_metrics FOR VERSION AS OF {snapshot_id}'
+sql = f'SELECT count(*) FROM iceberg.monitoring.raw_sftp_table FOR VERSION AS OF {snapshot_id}'
 r = requests.post('http://localhost:8888/v1/statement', data=sql, headers={'X-Trino-User': 'admin'})
 print(f'Số lượng bản ghi tại Snapshot {snapshot_id}:', r.json()['data'][0][0])
 "
@@ -175,7 +182,7 @@ print(f'Số lượng bản ghi tại Snapshot {snapshot_id}:', r.json()['data']
 1. Truy cập Grafana tại [http://localhost:3000](http://localhost:3000) (Tài khoản: `admin` / Mật khẩu: `admin`).
 2. Vào phần **Dashboards** -> Chọn dashboard **Server Performance Monitoring**.
 3. Dashboard sẽ trực quan hóa các biểu đồ CPU, RAM, Disk, IO và bảng thông số mới nhất của toàn bộ 100+ servers thời gian thực.
-4. Nhờ cơ chế tự động phân nhóm động bằng SQL (`server_name AS metric`), khi bạn chạy thêm các file dữ liệu giả lập cho các server mới, Grafana sẽ tự động vẽ thêm các đường biểu đồ mới mà không cần bất kỳ cấu hình hay thao tác chọn biến thủ công nào.
+4. Nhờ cơ chế tự động phân nhóm động bằng SQL (`CAST(server_id AS VARCHAR) AS metric`), khi bạn chạy thêm các file dữ liệu giả lập cho các server_id mới, Grafana sẽ tự động vẽ thêm các đường biểu đồ mới mà không cần bất kỳ cấu hình hay thao tác chọn biến thủ công nào.
 
 ---
 

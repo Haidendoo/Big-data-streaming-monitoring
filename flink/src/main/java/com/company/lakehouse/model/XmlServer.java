@@ -9,11 +9,8 @@ public class XmlServer implements Serializable {
     @JsonProperty("timestamp")
     private String timestamp;
 
-    @JsonProperty("server_name")
-    private String serverName;
-
-    @JsonProperty("ip")
-    private String ip;
+    @JsonProperty("server_id")
+    private Integer serverId;
 
     @JsonProperty("cpu")
     private Double cpu;
@@ -37,20 +34,12 @@ public class XmlServer implements Serializable {
         this.timestamp = timestamp;
     }
 
-    public String getServerName() {
-        return serverName;
+    public Integer getServerId() {
+        return serverId;
     }
 
-    public void setServerName(String serverName) {
-        this.serverName = serverName;
-    }
-
-    public String getIp() {
-        return ip;
-    }
-
-    public void setIp(String ip) {
-        this.ip = ip;
+    public void setServerId(Integer serverId) {
+        this.serverId = serverId;
     }
 
     public Double getCpu() {
