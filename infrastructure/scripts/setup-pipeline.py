@@ -188,20 +188,32 @@ def create_kafka_topic():
         # Check if topic already exists
         check_cmd = "kubectl exec -n streaming kafka-0 -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
         topics = subprocess.check_output(check_cmd, shell=True).decode().strip().split('\n')
-        if "file-arrival-events" in [t.strip() for t in topics if t.strip()]:
-            print("   Topic 'file-arrival-events' already exists.")
-            return
+        topic_exists = "file-arrival-events" in [t.strip() for t in topics if t.strip()]
 
-        # Create topic
+        if topic_exists:
+            # Check partitions and replication factor
+            desc_cmd = "kubectl exec -n streaming kafka-0 -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic file-arrival-events"
+            desc_out = subprocess.check_output(desc_cmd, shell=True).decode()
+            if "PartitionCount: 3" in desc_out and "ReplicationFactor: 3" in desc_out:
+                print("   Topic 'file-arrival-events' already exists with 3 partitions and replication factor 3.")
+                return
+            else:
+                print("   Topic 'file-arrival-events' exists but has incorrect config. Deleting and recreating...")
+                delete_cmd = "kubectl exec -n streaming kafka-0 -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic file-arrival-events"
+                subprocess.check_call(delete_cmd, shell=True)
+                time.sleep(2)  # Wait for deletion to propagate
+
+        # Create topic with 3 partitions and replication factor 3
         create_cmd = (
             "kubectl exec -n streaming kafka-0 -- /opt/kafka/bin/kafka-topics.sh "
             "--bootstrap-server localhost:9092 --create --topic file-arrival-events "
-            "--partitions 3 --replication-factor 1"
+            "--partitions 3 --replication-factor 3 "
+            "--config min.insync.replicas=2 --config retention.ms=604800000"
         )
         subprocess.check_call(create_cmd, shell=True)
-        print("   ✅ Topic 'file-arrival-events' created successfully.")
+        print("   ✅ Topic 'file-arrival-events' created/recreated successfully with 3 partitions and replication factor 3.")
     except Exception as e:
-        print(f"   ⚠️ Could not verify/create Kafka topic: {e} (it might be auto-created later)")
+        print(f"   ⚠️ Could not verify/create Kafka topic: {e}")
 
 def configure_minio():
     print("🪣 Configuring MinIO bucket and lifecycle retention...")
@@ -225,8 +237,14 @@ def configure_minio():
         subprocess.check_call(mb_cmd, shell=True)
         
         # Check if ilm rule already exists
-        check_ilm_cmd = f"kubectl exec -n lakehouse {minio_pod} -- mc ilm rule list local/lakehouse"
-        rules_out = subprocess.check_output(check_ilm_cmd, shell=True, stderr=subprocess.DEVNULL).decode().strip()
+        rules_out = ""
+        try:
+            check_ilm_cmd = f"kubectl exec -n lakehouse {minio_pod} -- mc ilm rule list local/lakehouse"
+            rules_out = subprocess.check_output(check_ilm_cmd, shell=True, stderr=subprocess.DEVNULL).decode().strip()
+        except Exception:
+            # If the bucket is brand new, ilm rule list will fail with exit code 1.
+            # We can safely ignore and proceed.
+            pass
         
         if "raw-file/" not in rules_out:
             print("   Adding 24h expiration rule to 'raw-file/' prefix...")
@@ -241,9 +259,9 @@ def configure_minio():
         sys.exit(1)
 
 def main():
+    configure_minio()
     setup_trino_tables()
     create_kafka_topic()
-    configure_minio()
     configure_nifi()
     compile_and_deploy_flink()
     print("\n🎉 ALL PIPELINE COMPONENTS SUCCESSFULLY CONFIGURED AND RUNNING!")
