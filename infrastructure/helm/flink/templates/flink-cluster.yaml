@@ -33,6 +33,11 @@ spec:
         env:
         - name: JOB_MANAGER_RPC_ADDRESS
           value: flink-jobmanager
+        - name: FLINK_PROPERTIES
+          value: |
+            {{- range $key, $value := .Values.flinkConfiguration }}
+            {{ $key }}: {{ $value }}
+            {{- end }}
         ports:
         - containerPort: 6123
           name: rpc
@@ -40,6 +45,8 @@ spec:
           name: blob-server
         - containerPort: 8081
           name: webui
+        - containerPort: 9249
+          name: metrics
         resources:
           {{- toYaml .Values.jobmanager.resources | nindent 10 }}
         volumeMounts:
@@ -101,6 +108,14 @@ spec:
         env:
         - name: JOB_MANAGER_RPC_ADDRESS
           value: flink-jobmanager
+        - name: FLINK_PROPERTIES
+          value: |
+            {{- range $key, $value := .Values.flinkConfiguration }}
+            {{ $key }}: {{ $value }}
+            {{- end }}
+        ports:
+        - containerPort: 9249
+          name: metrics
         resources:
           {{- toYaml .Values.taskmanager.resources | nindent 10 }}
         volumeMounts:

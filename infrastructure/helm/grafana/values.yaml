@@ -1,4 +1,8 @@
 adminPassword: admin
+
+# Load environment variables (including SMTP settings) from a Kubernetes Secret
+envFromSecret: "grafana-smtp-secret"
+
 dashboardProviders:
   dashboardproviders.yaml:
     apiVersion: 1
@@ -91,3 +95,90 @@ resources:
 service:
   port: 80
   type: LoadBalancer
+
+alerting:
+  rules.yaml:
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: "Server Metrics Alerts"
+        folder: "Server Alerts"
+        interval: 1m
+        rules:
+          - uid: server_cpu_too_high
+            title: "Server CPU Utilization Alert (>90%)"
+            condition: B
+            data:
+              - refId: A
+                datasourceUid: trino-lakehouse
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                model:
+                  rawSql: "SELECT ts AS time, cpu_util AS value, CAST(server_id AS VARCHAR) AS metric FROM iceberg.monitoring.raw_sftp_table WHERE ts >= now() - interval '5' minute ORDER BY ts DESC"
+                  refId: A
+                  format: 0
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  expression: A
+                  conditions:
+                    - evaluator:
+                        params: [90.0]
+                        type: gt
+                      operator:
+                        type: and
+                      reducer:
+                        type: last
+                      type: query
+            noDataState: NoData
+            execErrState: Alerting
+            for: 1m
+            annotations:
+              summary: "CPU utilization too high on server"
+              description: "Cảnh báo: CPU server đang vượt quá ngưỡng 90%."
+            labels:
+              severity: critical
+
+  contactpoints.yaml:
+    apiVersion: 1
+    contactPoints:
+      - name: "Email Channel"
+        receivers:
+          - type: email
+            uid: email-receiver
+            settings:
+              addresses: "${SMTP_RECIPIENT}"
+              singleEmail: true
+      - name: "Telegram Channel"
+        receivers:
+          - type: telegram
+            uid: telegram-receiver
+            settings:
+              bottoken: "YOUR_TELEGRAM_BOT_TOKEN_HERE"
+              chatid: "YOUR_TELEGRAM_CHAT_ID_HERE"
+      - name: "Slack Channel"
+        receivers:
+          - type: slack
+            uid: slack-receiver
+            settings:
+              url: "YOUR_SLACK_WEBHOOK_URL_HERE"
+              recipient: "#alerts"
+
+  policies.yaml:
+    apiVersion: 1
+    policies:
+      - orgId: 1
+        receiver: "Email Channel"
+        group_by: ["alertname"]
+        group_wait: 10s
+        group_interval: 5m
+        repeat_interval: 1h
+        routes:
+          - receiver: "Telegram Channel"
+            object_matchers:
+              - ["severity", "=", "warning"]
+          - receiver: "Slack Channel"
+            object_matchers:
+              - ["severity", "=", "critical"]

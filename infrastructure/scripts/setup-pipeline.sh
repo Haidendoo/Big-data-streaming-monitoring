@@ -15,3 +15,16 @@ kubectl wait --namespace streaming --for=condition=ready pod -l component=jobman
 echo "✅ All pods are ready. Running setup-pipeline.py..."
 chmod +x infrastructure/scripts/setup-pipeline.py
 python3 infrastructure/scripts/setup-pipeline.py
+
+echo "🔄 Khởi động port-forward chạy ngầm cho Prometheus và Alertmanager..."
+pkill -f "port-forward.*9090" || true
+pkill -f "port-forward.*9093" || true
+sleep 1
+
+nohup kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 --address 0.0.0.0 >/dev/null 2>&1 &
+nohup kubectl port-forward -n monitoring svc/prometheus-alertmanager 9093:9093 --address 0.0.0.0 >/dev/null 2>&1 &
+sleep 2
+
+echo "✨ Đã kích hoạt cổng truy cập từ máy host:"
+echo "📊 Prometheus UI: http://localhost:9090"
+echo "🔔 Alertmanager UI: http://localhost:9093"

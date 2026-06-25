@@ -108,16 +108,25 @@ chmod +x infrastructure/scripts/setup-pipeline.sh
 
 ## 🌐 Thông tin cổng truy cập các dịch vụ
 
-Sau khi deploy hoàn tất, toàn bộ các service đều được cấu hình LoadBalancer trực tiếp qua `localhost` của máy host:
+Sau khi deploy hoàn tất, toàn bộ các service đều được cấu hình LoadBalancer hoặc thông qua Port-Forwarding trực tiếp qua `localhost` của máy host:
 
-| Dịch vụ | Địa chỉ truy cập (URL) | Tài khoản / Mật khẩu | Namespace |
-| :--- | :--- | :--- | :--- |
-| **Grafana (Dashboards)** | [http://localhost:3000](http://localhost:3000) | `admin` / `admin` | `monitoring` |
-| **Apache NiFi (Ingestion)** | [https://localhost:8443/nifi](https://localhost:8443/nifi) | `admin` / `password123456` | `ingestion` |
-| **MinIO Console (Storage)** | [http://localhost:9001](http://localhost:9001) | `admin` / `password123` | `lakehouse` |
-| **Kafka UI (Topic Management)** | [http://localhost:9080](http://localhost:9080) | Không có | `streaming` |
-| **Trino Server (SQL queries)** | [http://localhost:8888](http://localhost:8888) | User: `admin` | `lakehouse` |
-| **Flink UI (Job Monitoring)** | [http://localhost:8081](http://localhost:8081) | Không có | `streaming` |
+| Dịch vụ | Địa chỉ truy cập (URL) | Tài khoản / Mật khẩu | Namespace | Phương thức |
+| :--- | :--- | :--- | :--- | :--- |
+| **Grafana (Dashboards)** | [http://localhost:3000](http://localhost:3000) | `admin` / `admin` | `monitoring` | LoadBalancer |
+| **Apache NiFi (Ingestion)** | [https://localhost:8443/nifi](https://localhost:8443/nifi) | `admin` / `password123456` | `ingestion` | LoadBalancer |
+| **MinIO Console (Storage)** | [http://localhost:9001](http://localhost:9001) | `admin` / `password123` | `lakehouse` | LoadBalancer |
+| **Kafka UI (Topic Management)** | [http://localhost:9080](http://localhost:9080) | Không có | `streaming` | LoadBalancer |
+| **Trino Server (SQL queries)** | [http://localhost:8888](http://localhost:8888) | User: `admin` | `lakehouse` | LoadBalancer |
+| **Flink UI (Job Monitoring)** | [http://localhost:8081](http://localhost:8081) | Không có | `streaming` | LoadBalancer |
+| **Prometheus (Metrics UI)** | [http://localhost:9090](http://localhost:9090) | Không có | `monitoring` | Port-Forward |
+| **Alertmanager (Alerting UI)** | [http://localhost:9093](http://localhost:9093) | Không có | `monitoring` | Port-Forward |
+
+> [!NOTE]
+> Cổng truy cập cho Prometheus và Alertmanager được tự động kích hoạt chạy ngầm sau khi chạy script `./infrastructure/scripts/setup-pipeline.sh`. Nếu cần khởi động lại thủ công từ terminal máy host, bạn có thể chạy:
+> ```bash
+> kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 --address 0.0.0.0 &
+> kubectl port-forward -n monitoring svc/prometheus-alertmanager 9093:9093 --address 0.0.0.0 &
+> ```
 
 > [!IMPORTANT]
 > **Lưu ý đối với Apache NiFi:** NiFi bắt buộc phải truy cập bằng giao thức **HTTPS**. Do chứng chỉ là tự ký, trình duyệt sẽ đưa ra cảnh báo bảo mật. Hãy chọn **Advanced** -> **Proceed to localhost (unsafe)** để tiếp tục truy cập.
@@ -183,6 +192,45 @@ print(f'Số lượng bản ghi tại Snapshot {snapshot_id}:', r.json()['data']
 2. Vào phần **Dashboards** -> Chọn dashboard **Server Performance Monitoring**.
 3. Dashboard sẽ trực quan hóa các biểu đồ CPU, RAM, Disk, IO và bảng thông số mới nhất của toàn bộ 100+ servers thời gian thực.
 4. Nhờ cơ chế tự động phân nhóm động bằng SQL (`CAST(server_id AS VARCHAR) AS metric`), khi bạn chạy thêm các file dữ liệu giả lập cho các server_id mới, Grafana sẽ tự động vẽ thêm các đường biểu đồ mới mà không cần bất kỳ cấu hình hay thao tác chọn biến thủ công nào.
+
+---
+
+## 🔔 Cấu hình Cảnh báo Email (SMTP)
+
+Để cấu hình hệ thống tự động gửi cảnh báo về email của bạn khi phát hiện hiệu năng server quá tải (ví dụ: CPU > 90%):
+
+1. **Khởi tạo thông tin**: Sửa file `.env` ở thư mục gốc và điền thông tin SMTP của bạn:
+   * **Gmail**: Bật Xác minh 2 bước và tạo **Mật khẩu ứng dụng (App Password)** gồm 16 ký tự để điền vào `GF_SMTP_PASSWORD`.
+   * **Email nhận thư**: Điền vào `SMTP_RECIPIENT`.
+2. **Kích hoạt cấu hình**: Chạy script helper để tự động nạp Secret và restart Grafana Pod:
+   ```bash
+   ./infrastructure/scripts/setup-email-alerts.sh
+   ```
+3. **Kiểm tra**: Vào Grafana (`Alerting` -> `Contact points`), chọn `Email Channel` và gửi thử một Email Test.
+
+---
+
+## 🔄 Khởi động lại & Tiếp tục (Start & Stop Cluster)
+
+Khi bạn muốn tắt máy hoặc tạm dừng hệ thống mà không làm mất dữ liệu và các cấu hình đã cài:
+
+1. **Tạm dừng Cluster**:
+   ```bash
+   k3d cluster stop vdt-lakehouse
+   ```
+2. **Khởi động lại & Tiếp tục**:
+   * Chạy lệnh start cluster:
+     ```bash
+     k3d cluster start vdt-lakehouse
+     ```
+   * Chạy lại pipeline để kích hoạt Gmail connection:
+     ```bash
+       ./infrastructure/scripts/setup-email-alerts.sh
+     ```
+   * Chạy lại pipeline để kích hoạt Flink/NiFi và cổng port-forward tự động:
+     ```bash
+     ./infrastructure/scripts/setup-pipeline.sh
+     ```
 
 ---
 

@@ -1,4 +1,27 @@
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-jmx-config
+  namespace: streaming
+data:
+  kafka-config.yml: |
+    lowercaseOutputName: true
+    rules:
+      - pattern: kafka.server<type=(.+)><>([^:]+)
+        name: kafka_server_$1_$2
+      - pattern: kafka.server<type=(.+), name=(.+)><>([^:]+)
+        name: kafka_server_$1_$2_$3
+      - pattern: kafka.server<type=(.+), name=(.+), topic=(.+)><>([^:]+)
+        name: kafka_server_$1_$2_$4
+        labels:
+          topic: "$3"
+      - pattern: kafka.server<type=(.+), name=(.+), topic=(.+), partition=(.+)><>([^:]+)
+        name: kafka_server_$1_$2_$5
+        labels:
+          topic: "$3"
+          partition: "$4"
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: kafka
@@ -31,6 +54,16 @@ spec:
       labels:
         app: kafka
     spec:
+      initContainers:
+      - name: download-jmx-exporter
+        image: alpine:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          wget -q -O /usr/share/jmx_exporter/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.19.0/jmx_prometheus_javaagent-0.19.0.jar
+        volumeMounts:
+        - name: jmx-agent
+          mountPath: /usr/share/jmx_exporter
       containers:
       - name: kafka
         image: apache/kafka:latest
@@ -62,14 +95,28 @@ spec:
           value: "2"
         - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
           value: "0"
+        - name: KAFKA_OPTS
+          value: "-javaagent:/usr/share/jmx_exporter/jmx_prometheus_javaagent.jar=9404:/etc/jmx_exporter/kafka-config.yml"
         ports:
         - containerPort: 9092
           name: broker
         - containerPort: 9093
           name: controller
+        - containerPort: 9404
+          name: metrics
         volumeMounts:
         - name: data
           mountPath: /var/lib/kafka/data
+        - name: jmx-agent
+          mountPath: /usr/share/jmx_exporter
+        - name: jmx-config
+          mountPath: /etc/jmx_exporter
+      volumes:
+      - name: jmx-agent
+        emptyDir: {}
+      - name: jmx-config
+        configMap:
+          name: kafka-jmx-config
   volumeClaimTemplates:
   - metadata:
       name: data

@@ -11,3 +11,6 @@ flink/dependency-reduced-pom.xml
 # OS temporary files
 .DS_Store
 Thumbs.db
+
+# Secrets and environment variables
+.env

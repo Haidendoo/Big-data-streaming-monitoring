@@ -101,14 +101,15 @@ gantt
 
 ---
 
-### 🟨 Bước 7: Phân tách Serving & Giám sát Cảnh báo Đa kênh (Serving & Alerting Layer) - **[40% HOÀN THÀNH]**
+### 🟨 Bước 7: Phân tách Serving & Giám sát Cảnh báo Đa kênh (Serving & Alerting Layer) - **[90% HOÀN THÀNH]**
 - [ ] **Phân tách 2 Dashboards (Trino Serving):**
   - [x] Thiết lập Grafana Realtime Dashboard kết nối Trino truy vấn từ bảng cũ.
   - [x] Cập nhật Dashboard 1 để truy vấn từ bảng `Iceberg Log Thô` theo `server_id` mới (Đã hoàn tất cấu hình qua Helm upgrade values).
   - [ ] Thiết lập Dashboard 2 (BI Report) kết nối Trino truy vấn từ bảng `Iceberg KPI Tổng Hợp` báo cáo hiệu năng dài hạn theo Tỉnh/Trạm cho quản lý.
-- [ ] **Thiết lập Giám sát Hệ thống & Cấu hình Cảnh báo (Prometheus Alertmanager):**
+- [x] **Thiết lập Giám sát Hệ thống & Cấu hình Cảnh báo (Prometheus Alertmanager):**
   - [x] Prometheus tự động scraping metrics của Flink và Kafka.
-  - [ ] Cấu hình Prometheus Alertmanager và định tuyến cảnh báo (Critical/Warning) đến: **Slack/Discord Webhooks**, **Telegram Bot**, **Email (SMTP)** và **Custom Webhooks** hỗ trợ tự phục hồi.
+  - [x] Cấu hình Prometheus Alertmanager và định tuyến cảnh báo (Critical/Warning) đến: **Slack/Discord Webhooks**, **Telegram Bot**, **Email (SMTP)** và **Custom Webhooks** hỗ trợ tự phục hồi.
+  - [x] Hỗ trợ truy cập Web UI của Prometheus và Alertmanager từ máy host (thông qua port-forwarding hoặc Docker Bridge network).
 
 ---
 
@@ -116,4 +117,4 @@ gantt
 
 - **Hạ tầng (Infra):** **100% HOÀN THÀNH**
 - **Luồng dữ liệu (Data Pipeline):** **80% HOÀN THÀNH** (NiFi $\rightarrow$ MinIO/Kafka $\rightarrow$ Flink $\rightarrow$ Iceberg Fact table hoàn tất chạy thực tế; Spark Batch và Airflow chưa phát triển)
-- **Giám sát & Cảnh báo đa kênh:** **40% HOÀN THÀNH** (Grafana Realtime Dashboard 1 đã hoàn tất chuyển sang dùng server_id thô, Alertmanager & các kênh cảnh báo chưa cấu hình)
+- **Giám sát & Cảnh báo đa kênh:** **90% HOÀN THÀNH** (Grafana Realtime Dashboard 1 đã hoàn tất chuyển sang dùng server_id thô, Alertmanager & các kênh cảnh báo đã cấu hình hoàn chỉnh, truy cập UI ngoài hoạt động ổn định)

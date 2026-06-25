@@ -30,3 +30,13 @@ resources:
     memory: 3Gi
   requests:
     memory: 2Gi
+
+# Enable JMX exporter for Prometheus metrics
+jmx:
+  enabled: true
+  exporter:
+    enabled: true
+    port: 5556
+    configProperties: |
+      hostPort: 127.0.0.1:9080
+      rules: []
