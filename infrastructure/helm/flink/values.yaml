@@ -1,7 +1,7 @@
 # Flink Kubernetes Operator / Session Cluster Configuration
 image:
   repository: flink
-  tag: 1.17.1-scala_2.12-java11
+  tag: 1.18.1-java11
   pullPolicy: IfNotPresent
 
 jobmanager:

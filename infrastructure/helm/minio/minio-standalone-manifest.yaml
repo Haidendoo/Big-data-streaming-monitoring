@@ -15,13 +15,31 @@ spec:
       port: 9001
       targetPort: 9001
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-headless
+  namespace: lakehouse
+spec:
+  clusterIP: None
+  selector:
+    app: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
+---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: minio
   namespace: lakehouse
 spec:
-  replicas: 1
+  serviceName: "minio-headless"
+  replicas: 4
   selector:
     matchLabels:
       app: minio
@@ -34,7 +52,14 @@ spec:
       - name: minio
         image: minio/minio:latest
         command: ["/bin/sh", "-ce"]
-        args: ["mkdir -p /data && minio server /data --console-address :9001"]
+        args:
+        - |
+          minio server \
+            http://minio-0.minio-headless.lakehouse.svc.cluster.local:9000/data \
+            http://minio-1.minio-headless.lakehouse.svc.cluster.local:9000/data \
+            http://minio-2.minio-headless.lakehouse.svc.cluster.local:9000/data \
+            http://minio-3.minio-headless.lakehouse.svc.cluster.local:9000/data \
+            --console-address :9001
         env:
         - name: MINIO_ROOT_USER
           value: "admin"
@@ -46,6 +71,11 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
-      volumes:
-      - name: data
-        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 2Gi

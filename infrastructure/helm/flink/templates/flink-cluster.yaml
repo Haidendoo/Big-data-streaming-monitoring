@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: flink-jobmanager
 spec:
-  replicas: 1
+  replicas: {{ .Values.jobmanager.replicaCount }}
   selector:
     matchLabels:
       app: flink
@@ -27,7 +27,8 @@ spec:
           mountPath: /shared-lib
       containers:
       - name: jobmanager
-        image: flink:1.18.1-java11
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         args: ["jobmanager"]
         env:
         - name: JOB_MANAGER_RPC_ADDRESS
@@ -40,10 +41,7 @@ spec:
         - containerPort: 8081
           name: webui
         resources:
-          limits:
-            memory: 1Gi
-          requests:
-            memory: 512Mi
+          {{- toYaml .Values.jobmanager.resources | nindent 10 }}
         volumeMounts:
         - name: shared-lib
           mountPath: /opt/flink/usrlib
@@ -73,7 +71,7 @@ kind: Deployment
 metadata:
   name: flink-taskmanager
 spec:
-  replicas: 1
+  replicas: {{ .Values.taskmanager.replicaCount }}
   selector:
     matchLabels:
       app: flink
@@ -97,16 +95,14 @@ spec:
           mountPath: /shared-lib
       containers:
       - name: taskmanager
-        image: flink:1.18.1-java11
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         args: ["taskmanager"]
         env:
         - name: JOB_MANAGER_RPC_ADDRESS
           value: flink-jobmanager
         resources:
-          limits:
-            memory: 2Gi
-          requests:
-            memory: 1Gi
+          {{- toYaml .Values.taskmanager.resources | nindent 10 }}
         volumeMounts:
         - name: shared-lib
           mountPath: /opt/flink/usrlib

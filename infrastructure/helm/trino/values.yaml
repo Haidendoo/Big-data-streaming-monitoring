@@ -5,7 +5,7 @@ image:
 
 # Chạy Trino dạng single node để tiết kiệm RAM
 server:
-  workers: 0
+  workers: 2
   coordinatorExtraConfig: |
     node-scheduler.include-coordinator=true
 
