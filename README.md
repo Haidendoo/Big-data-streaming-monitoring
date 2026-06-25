@@ -1,6 +1,6 @@
 # Hệ thống Giám sát Server Lakehouse (Server Monitoring Lakehouse Platform)
 
-Hệ thống giám sát máy chủ tập trung thời gian thực (100+ servers) sử dụng kiến trúc **Lakehouse** hiện đại để tối ưu hóa lưu trữ và truy vấn hiệu năng cao. Luồng dữ liệu đi qua các thành phần: **SFTP -> Apache NiFi -> MinIO (Landing Zone) & Apache Kafka -> Apache Flink -> Apache Iceberg -> Trino Query Engine -> Grafana Dashboard**.
+Hệ thống giám sát máy chủ tập trung thời gian thực (100+ servers) sử dụng kiến trúc **Lakehouse** hiện đại để tối ưu hóa lưu trữ và truy vấn hiệu năng cao. Luồng dữ liệu đi qua các thành phần: **SFTP -> Apache NiFi -> MinIO (Lakehouse Bucket) & Apache Kafka -> Apache Flink -> Apache Iceberg -> Trino Query Engine -> Grafana Dashboard**.
 
 Hạ tầng được triển khai hoàn toàn trên cluster **k3d/k3s (Kubernetes lightweight)** cấu hình đa-node giả lập môi trường Production thực tế.
 
@@ -33,7 +33,7 @@ graph TD
     end
 
     subgraph "Storage & Metadata Layer (Lakehouse - lakehouse namespace)"
-        Minio[(MinIO S3 landing-zone)]
+        Minio[(MinIO S3 lakehouse bucket)]
         HMS[Hive Metastore]
         Iceberg[Apache Iceberg Table]
     end
@@ -138,7 +138,7 @@ python3 infrastructure/scripts/generate-mock-data.py
 *Mỗi lần chạy script này sẽ sinh ra dữ liệu cho 5 máy chủ giám sát (`prod-web-01`, `prod-web-02`, v.v.) và đẩy qua SFTP.*
 
 ### Bước 2: Quan sát luồng Ingestion & Processing
-1. **Apache NiFi:** Truy cập [https://localhost:8443/nifi](https://localhost:8443/nifi). Bạn sẽ thấy NiFi tự động phát hiện file trên SFTP, đẩy file thô vào MinIO bucket `landing-zone/` theo định dạng phân cấp thời gian (`yyyy/mm/dd/HH/`), và phát hành một sự kiện JSON thông báo lên topic `file-arrival-events` của Kafka.
+1. **Apache NiFi:** Truy cập [https://localhost:8443/nifi](https://localhost:8443/nifi). Bạn sẽ thấy NiFi tự động phát hiện file trên SFTP, đẩy file thô vào MinIO bucket `lakehouse` dưới folder `raw-file/` theo định dạng phân cấp thời gian (`raw-file/yyyy/mm/dd/HH/`), và phát hành một sự kiện JSON thông báo lên topic `file-arrival-events` của Kafka.
 2. **Apache Flink:** Truy cập Flink UI tại [http://localhost:8081](http://localhost:8081) để kiểm tra Job Stream xử lý dữ liệu. Flink sẽ tiêu thụ sự kiện từ Kafka, tải tệp tương ứng từ MinIO, phân tích định dạng (CSV hoặc XML), ép kiểu trường dữ liệu hiệu năng và ghi trực tiếp xuống Iceberg Table.
 
 ### Bước 3: Truy vấn SQL bằng Trino & Thử nghiệm Time-travel

@@ -55,7 +55,8 @@ def setup_trino_tables():
         "DROP VIEW IF EXISTS iceberg.monitoring.server_metrics",
         "DROP TABLE IF EXISTS iceberg.monitoring.kpi_summary",
         "DROP TABLE IF EXISTS iceberg.monitoring.server_config",
-        "DROP TABLE IF EXISTS iceberg.monitoring.raw_sftp_table"
+        "DROP TABLE IF EXISTS iceberg.monitoring.raw_sftp_table",
+        "DROP SCHEMA IF EXISTS iceberg.monitoring CASCADE"
     ]
     for stmt in cleanup_statements:
         print(f"   🧹 {stmt}...")
@@ -128,17 +129,6 @@ def compile_and_deploy_flink():
         print(f"❌ Error: Compiled Flink JAR not found at {jar_file}")
         sys.exit(1)
         
-    # Get JobManager pod name
-    print("🔍 Locating Flink JobManager pod...")
-    try:
-        cmd = "kubectl get pods -n streaming -l component=jobmanager -o jsonpath='{.items[0].metadata.name}'"
-        pod_name = subprocess.check_output(cmd, shell=True).decode().strip()
-    except Exception as e:
-        print(f"❌ Failed to find JobManager pod name: {e}")
-        sys.exit(1)
-        
-    print(f"   Found JobManager pod: {pod_name}")
-    
     # Cancel any existing Flink jobs first
     print("🧹 Checking for running Flink jobs to cancel...")
     try:
@@ -152,31 +142,108 @@ def compile_and_deploy_flink():
     except Exception as e:
         print(f"   (No active jobs found or Flink API was not reachable: {e})")
 
-    # Copy JAR to JobManager
-    print(f"📤 Copying JAR to JobManager container...")
+    # Upload JAR via REST API
+    print("📤 Uploading JAR to Flink JobManager...")
+    upload_url = "http://localhost:8081/jars/upload"
     try:
-        subprocess.check_call(["kubectl", "cp", jar_file, f"streaming/{pod_name}:/tmp/job.jar"])
+        with open(jar_file, 'rb') as f:
+            files = {'jarfile': (os.path.basename(jar_file), f, 'application/java-archive')}
+            r = requests.post(upload_url, files=files)
+        if r.status_code != 200:
+            print(f"❌ Failed to upload JAR: {r.status_code} - {r.text}")
+            sys.exit(1)
+        res = r.json()
+        filename = res.get("filename")
+        if not filename:
+            print(f"❌ Upload failed: {res}")
+            sys.exit(1)
+        jar_id = os.path.basename(filename)
+        print(f"   JAR uploaded successfully. Jar ID: {jar_id}")
     except Exception as e:
-        print(f"❌ Failed to copy jar: {e}")
+        print(f"❌ Exception uploading jar: {e}")
         sys.exit(1)
-        
-    # Run Flink Job
+
+    # Run Flink Job via REST API
     print("🚀 Submitting Flink Job...")
-    run_cmd = (
-        f"kubectl exec -n streaming {pod_name} -- flink run -d "
-        f"-C file:///opt/flink/usrlib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar "
-        f"-C file:///opt/flink/usrlib/flink-sql-connector-hive-3.1.3_2.12-1.18.1.jar "
-        f"/tmp/job.jar"
-    )
+    run_url = f"http://localhost:8081/jars/{jar_id}/run"
+    run_payload = {
+        "flinkConfiguration": {
+            "pipeline.classpaths": "file:///opt/flink/usrlib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar;file:///opt/flink/usrlib/flink-sql-connector-hive-3.1.3_2.12-1.18.1.jar"
+        }
+    }
     try:
-        subprocess.check_call(run_cmd, shell=True)
-        print("✅ Flink job submitted successfully!")
+        r_run = requests.post(run_url, json=run_payload)
+        if r_run.status_code != 200:
+            print(f"❌ Failed to submit Flink job: {r_run.status_code} - {r_run.text}")
+            sys.exit(1)
+        run_res = r_run.json()
+        print(f"✅ Flink job submitted successfully! Job ID: {run_res.get('jobid')}")
     except Exception as e:
-        print(f"❌ Failed to submit Flink job: {e}")
+        print(f"❌ Exception submitting Flink job: {e}")
+        sys.exit(1)
+
+def create_kafka_topic():
+    print("📢 Checking and creating Kafka topic 'file-arrival-events'...")
+    try:
+        # Check if topic already exists
+        check_cmd = "kubectl exec -n streaming kafka-0 -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
+        topics = subprocess.check_output(check_cmd, shell=True).decode().strip().split('\n')
+        if "file-arrival-events" in [t.strip() for t in topics if t.strip()]:
+            print("   Topic 'file-arrival-events' already exists.")
+            return
+
+        # Create topic
+        create_cmd = (
+            "kubectl exec -n streaming kafka-0 -- /opt/kafka/bin/kafka-topics.sh "
+            "--bootstrap-server localhost:9092 --create --topic file-arrival-events "
+            "--partitions 3 --replication-factor 1"
+        )
+        subprocess.check_call(create_cmd, shell=True)
+        print("   ✅ Topic 'file-arrival-events' created successfully.")
+    except Exception as e:
+        print(f"   ⚠️ Could not verify/create Kafka topic: {e} (it might be auto-created later)")
+
+def configure_minio():
+    print("🪣 Configuring MinIO bucket and lifecycle retention...")
+    try:
+        # Get the minio pod name in lakehouse namespace
+        pod_cmd = "kubectl get pods -n lakehouse -l app=minio -o jsonpath='{.items[0].metadata.name}'"
+        minio_pod = subprocess.check_output(pod_cmd, shell=True).decode().strip()
+        
+        if not minio_pod:
+            print("❌ MinIO pod not found!")
+            sys.exit(1)
+            
+        print(f"   Found MinIO pod: {minio_pod}")
+        
+        # Configure mc alias
+        alias_cmd = f"kubectl exec -n lakehouse {minio_pod} -- mc alias set local http://localhost:9000 admin password123"
+        subprocess.check_call(alias_cmd, shell=True)
+        
+        # Create bucket 'lakehouse' if not exists
+        mb_cmd = f"kubectl exec -n lakehouse {minio_pod} -- /bin/sh -c 'mc ls local/lakehouse >/dev/null 2>&1 || mc mb local/lakehouse'"
+        subprocess.check_call(mb_cmd, shell=True)
+        
+        # Check if ilm rule already exists
+        check_ilm_cmd = f"kubectl exec -n lakehouse {minio_pod} -- mc ilm rule list local/lakehouse"
+        rules_out = subprocess.check_output(check_ilm_cmd, shell=True, stderr=subprocess.DEVNULL).decode().strip()
+        
+        if "raw-file/" not in rules_out:
+            print("   Adding 24h expiration rule to 'raw-file/' prefix...")
+            rule_cmd = f"kubectl exec -n lakehouse {minio_pod} -- mc ilm rule add --prefix \"raw-file/\" --expire-days 1 local/lakehouse"
+            subprocess.check_call(rule_cmd, shell=True)
+        else:
+            print("   Lifecycle rule for 'raw-file/' already exists.")
+            
+        print("   ✅ MinIO bucket and lifecycle retention configured successfully.")
+    except Exception as e:
+        print(f"   ❌ Failed to configure MinIO bucket/lifecycle: {e}")
         sys.exit(1)
 
 def main():
     setup_trino_tables()
+    create_kafka_topic()
+    configure_minio()
     configure_nifi()
     compile_and_deploy_flink()
     print("\n🎉 ALL PIPELINE COMPONENTS SUCCESSFULLY CONFIGURED AND RUNNING!")

@@ -301,8 +301,8 @@ def main():
         name="PutMinio-Landing",
         proc_type="org.apache.nifi.processors.aws.s3.PutS3Object",
         properties={
-            "Bucket": "landing-zone",
-            "Object Key": "${now():format('yyyy/MM/dd/HH')}/${filename}",
+            "Bucket": "lakehouse",
+            "Object Key": "raw-file/${now():format('yyyy/MM/dd/HH')}/${filename}",
             "Region": "us-east-1",
             "AWS Credentials Provider service": aws_creds_id,
             "Endpoint Override URL": "http://minio.lakehouse.svc.cluster.local:9000",
@@ -313,7 +313,7 @@ def main():
     )
     
     replace_val = """{
-  "file_path": "s3a://landing-zone/${now():format('yyyy/MM/dd/HH')}/${filename}",
+  "file_path": "s3a://lakehouse/raw-file/${now():format('yyyy/MM/dd/HH')}/${filename}",
   "file_name": "${filename}",
   "timestamp": "${now():format("yyyy-MM-dd'T'HH:mm:ss'Z'")}",
   "format": "${filename:substringAfterLast('.')}"

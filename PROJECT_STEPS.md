@@ -47,12 +47,12 @@ gantt
 - [x] **Dựng Mock SFTP Server:**
   - Viết Manifest deploy một container SFTP đơn giản trong namespace `ingestion`.
   - Cấu hình tài khoản sftp, mount volume và tạo thư mục chứa metrics file (CSV/XML).
-- [ ] **Khởi tạo Buckets trên MinIO & Lifecycle Retention:**
-  - [x] Tạo bucket `landing-zone` làm nơi lưu trữ dữ liệu thô.
-  - [ ] Thiết lập quy tắc **Object Lifecycle Expiration = 24h** để tự động xóa sạch file cũ, tối ưu I/O.
+- [x] **Khởi tạo Buckets trên MinIO & Lifecycle Retention:**
+  - [x] Tạo bucket `lakehouse` làm nơi lưu trữ dữ liệu thô (folder `raw-file`).
+  - [x] Thiết lập quy tắc **Object Lifecycle Expiration = 24h** trên folder `raw-file` để tự động xóa sạch file cũ, tối ưu I/O.
 - [x] **Xây dựng Dataflow trên NiFi:**
   - Polling file từ SFTP mỗi 1 phút bằng **ListSFTP/FetchSFTP**.
-  - Đẩy file nguyên bản lên MinIO `landing-zone/yyyy/mm/dd/HH/`.
+  - Đẩy file nguyên bản lên MinIO `lakehouse/raw-file/yyyy/mm/dd/HH/`.
   - Gửi event notification sang Kafka topic `file-arrival-events`.
 - [ ] **Đồng bộ Metadata bằng Flink CDC:**
   - [ ] Triển khai Flink CDC giám sát DB cấu hình (`App_DB`).

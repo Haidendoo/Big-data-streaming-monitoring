@@ -167,7 +167,7 @@ public class Main implements Serializable {
         Map<String, String> catalogProperties = new HashMap<>();
         catalogProperties.put(CatalogProperties.CATALOG_IMPL, "org.apache.iceberg.hive.HiveCatalog");
         catalogProperties.put(CatalogProperties.URI, "thrift://hive-metastore.lakehouse.svc.cluster.local:9083");
-        catalogProperties.put(CatalogProperties.WAREHOUSE_LOCATION, "s3a://landing-zone/lakehouse/");
+        catalogProperties.put(CatalogProperties.WAREHOUSE_LOCATION, "s3a://lakehouse/lakehouse/");
         
         // Use HadoopFileIO to avoid AWS SDK v2 classpath issues
         catalogProperties.put("io-impl", "org.apache.iceberg.hadoop.HadoopFileIO");
