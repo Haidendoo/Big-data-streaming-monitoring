@@ -22,6 +22,7 @@ spec:
         - |
           wget -q -O /shared-lib/flink-sql-connector-hive-3.1.3_2.12-1.18.1.jar https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.3_2.12/1.18.1/flink-sql-connector-hive-3.1.3_2.12-1.18.1.jar
           wget -q -O /shared-lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar https://repo1.maven.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
+          wget -q -O /shared-lib/flink-sql-connector-postgres-cdc-3.1.1.jar https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-postgres-cdc/3.1.1/flink-sql-connector-postgres-cdc-3.1.1.jar
         volumeMounts:
         - name: shared-lib
           mountPath: /shared-lib
@@ -97,6 +98,7 @@ spec:
         - |
           wget -q -O /shared-lib/flink-sql-connector-hive-3.1.3_2.12-1.18.1.jar https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.3_2.12/1.18.1/flink-sql-connector-hive-3.1.3_2.12-1.18.1.jar
           wget -q -O /shared-lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar https://repo1.maven.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
+          wget -q -O /shared-lib/flink-sql-connector-postgres-cdc-3.1.1.jar https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-postgres-cdc/3.1.1/flink-sql-connector-postgres-cdc-3.1.1.jar
         volumeMounts:
         - name: shared-lib
           mountPath: /shared-lib

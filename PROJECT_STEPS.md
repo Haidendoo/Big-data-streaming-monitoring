@@ -15,7 +15,7 @@ gantt
     section Phase 2: Ingestion & CDC
     Dựng Mock SFTP & Flow NiFi            :done, 2026-06-19, 1d
     MinIO Landing Retention (Lifecycle)   :active, 2026-06-20, 1d
-    Triển khai Flink CDC đồng bộ Dim      :active, 2026-06-20, 1d
+    Triển khai Flink CDC đồng bộ Dim      :done, 2026-06-20, 1d
     section Phase 3: Messaging
     Cấu hình Kafka Topic 3 partitions     :done, 2026-06-19, 1d
     section Phase 4: Storage Layer
@@ -43,7 +43,7 @@ gantt
 
 ---
 
-### 🟨 Bước 2: Cấu hình Luồng Thu thập & Đồng bộ (Ingestion & CDC Layer) - **[50% HOÀN THÀNH]**
+### 🟩 Bước 2: Cấu hình Luồng Thu thập & Đồng bộ (Ingestion & CDC Layer) - **[HOÀN THÀNH]**
 - [x] **Dựng Mock SFTP Server:**
   - Viết Manifest deploy một container SFTP đơn giản trong namespace `ingestion`.
   - Cấu hình tài khoản sftp, mount volume và tạo thư mục chứa metrics file (CSV/XML).
@@ -54,9 +54,9 @@ gantt
   - Polling file từ SFTP mỗi 1 phút bằng **ListSFTP/FetchSFTP**.
   - Đẩy file nguyên bản lên MinIO `lakehouse/raw-file/yyyy/mm/dd/HH/`.
   - Gửi event notification sang Kafka topic `file-arrival-events`.
-- [ ] **Đồng bộ Metadata bằng Flink CDC:**
-  - [ ] Triển khai Flink CDC giám sát DB cấu hình (`App_DB`).
-  - [ ] Tự động capture CDC events và đồng bộ gần realtime sang bảng danh mục (`Iceberg Cấu Hình - Dim`).
+- [x] **Đồng bộ Metadata bằng Flink CDC:**
+  - [x] Triển khai Flink CDC giám sát DB cấu hình (`App_DB`).
+  - [x] Tự động capture CDC events và đồng bộ gần realtime sang bảng danh mục (`Iceberg Cấu Hình - Dim`).
 
 ---
 
@@ -116,5 +116,5 @@ gantt
 ## 📈 Trạng thái Dự án hiện tại
 
 - **Hạ tầng (Infra):** **100% HOÀN THÀNH**
-- **Luồng dữ liệu (Data Pipeline):** **80% HOÀN THÀNH** (NiFi $\rightarrow$ MinIO/Kafka $\rightarrow$ Flink $\rightarrow$ Iceberg Fact table hoàn tất chạy thực tế; Spark Batch và Airflow chưa phát triển)
+- **Luồng dữ liệu (Data Pipeline):** **90% HOÀN THÀNH** (NiFi $\rightarrow$ MinIO/Kafka $\rightarrow$ Flink & Flink CDC $\rightarrow$ Iceberg Fact & Dim tables hoàn tất chạy thực tế; Spark Batch và Airflow chưa phát triển)
 - **Giám sát & Cảnh báo đa kênh:** **90% HOÀN THÀNH** (Grafana Realtime Dashboard 1 đã hoàn tất chuyển sang dùng server_id thô, Alertmanager & các kênh cảnh báo đã cấu hình hoàn chỉnh, truy cập UI ngoài hoạt động ổn định)

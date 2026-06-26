@@ -1,0 +1,6 @@
+apiVersion: v2
+name: dim-data-postgres
+description: Helm chart for PostgreSQL serving dim_data source with logical replication enabled.
+type: application
+version: 0.1.0
+appVersion: "16-alpine"

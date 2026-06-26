@@ -120,12 +120,14 @@ Sau khi deploy hoàn tất, toàn bộ các service đều được cấu hình 
 | **Flink UI (Job Monitoring)** | [http://localhost:8081](http://localhost:8081) | Không có | `streaming` | LoadBalancer |
 | **Prometheus (Metrics UI)** | [http://localhost:9090](http://localhost:9090) | Không có | `monitoring` | Port-Forward |
 | **Alertmanager (Alerting UI)** | [http://localhost:9093](http://localhost:9093) | Không có | `monitoring` | Port-Forward |
+| **PostgreSQL (dim_data DB)** | `localhost:5433` | User: `dim_user` / Pass: `dim_pass` | `lakehouse` | Port-Forward |
 
 > [!NOTE]
-> Cổng truy cập cho Prometheus và Alertmanager được tự động kích hoạt chạy ngầm sau khi chạy script `./infrastructure/scripts/setup-pipeline.sh`. Nếu cần khởi động lại thủ công từ terminal máy host, bạn có thể chạy:
+> Cổng truy cập cho Prometheus, Alertmanager và PostgreSQL (dim_data) được tự động kích hoạt chạy ngầm sau khi chạy script `./infrastructure/scripts/setup-pipeline.sh`. Nếu cần khởi động lại thủ công từ terminal máy host, bạn có thể chạy:
 > ```bash
 > kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 --address 0.0.0.0 &
 > kubectl port-forward -n monitoring svc/prometheus-alertmanager 9093:9093 --address 0.0.0.0 &
+> kubectl port-forward -n lakehouse svc/dim-data-postgresql 5433:5432 --address 0.0.0.0 &
 > ```
 
 > [!IMPORTANT]
@@ -192,6 +194,23 @@ print(f'Số lượng bản ghi tại Snapshot {snapshot_id}:', r.json()['data']
 2. Vào phần **Dashboards** -> Chọn dashboard **Server Performance Monitoring**.
 3. Dashboard sẽ trực quan hóa các biểu đồ CPU, RAM, Disk, IO và bảng thông số mới nhất của toàn bộ 100+ servers thời gian thực.
 4. Nhờ cơ chế tự động phân nhóm động bằng SQL (`CAST(server_id AS VARCHAR) AS metric`), khi bạn chạy thêm các file dữ liệu giả lập cho các server_id mới, Grafana sẽ tự động vẽ thêm các đường biểu đồ mới mà không cần bất kỳ cấu hình hay thao tác chọn biến thủ công nào.
+
+### Bước 5: Kiểm thử Flink CDC đồng bộ Dimension Table (PostgreSQL -> Iceberg)
+Luồng Flink CDC sẽ tự động bắt các thay đổi (INSERT/UPDATE/DELETE) ở bảng cấu hình trong database PostgreSQL và đồng bộ gần thời gian thực xuống bảng Iceberg `server_config`.
+
+1. **Kết nối DBeaver hoặc chạy lệnh SQL trực tiếp vào PostgreSQL:**
+   Sử dụng DBeaver kết nối qua cổng `localhost:5433` (hoặc chạy lệnh psql trong Pod) và chèn một dòng cấu hình máy chủ mới:
+   ```bash
+   kubectl exec -n lakehouse svc/dim-data-postgresql -- psql -U dim_user -d dim_data -c "INSERT INTO server_config (server_id, server_name, ip, province, station) VALUES (106, 'stage-cache-01', '192.168.1.99', 'Hue', 'Tram Huong Giang');"
+   ```
+
+2. **Kiểm tra kết quả đồng bộ trên Iceberg qua Trino:**
+   Truy vấn bảng Iceberg bằng Trino, bạn sẽ thấy dòng cấu hình máy chủ `106` mới xuất hiện ngay lập tức (sau tối đa 10 giây tương ứng chu kỳ checkpoint Flink):
+   ```bash
+   kubectl exec -n lakehouse deployment/trino-coordinator -- trino --server http://localhost:8888 --execute "SELECT * FROM iceberg.monitoring.server_config WHERE server_id = 106"
+   ```
+   *Kết quả mong đợi:*
+   `"106","stage-cache-01","192.168.1.99","Hue","Tram Huong Giang"`
 
 ---
 

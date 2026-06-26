@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dim-data-postgresql
+  namespace: lakehouse
+spec:
+  selector:
+    app: dim-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dim-data-postgresql
+  namespace: lakehouse
+spec:
+  serviceName: "dim-data-postgresql"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dim-postgres
+  template:
+    metadata:
+      labels:
+        app: dim-postgres
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              value: "dim_user"
+            - name: POSTGRES_PASSWORD
+              value: "dim_pass"
+            - name: POSTGRES_DB
+              value: "dim_data"
+          command: ["postgres"]
+          args:
+            - "-c"
+            - "wal_level=logical"
+            - "-c"
+            - "max_replication_slots=5"
+            - "-c"
+            - "max_wal_senders=5"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumes:
+    - name: data
+      hostPath:
+        path: /var/lib/k3d-pg-dim-data
+        type: DirectoryOrCreate

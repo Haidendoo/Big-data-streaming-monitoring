@@ -1,0 +1,32 @@
+# Helm values for a PostgreSQL instance that will serve as dim_data source for Flink CDC.
+# Logical replication is enabled via command‑line flags.
+# Credentials are intentionally simple for demo purposes – in production store them in a Secret.
+
+global:
+  security:
+    allowInsecureImages: true
+
+image:
+  registry: docker.io
+  repository: postgres
+  tag: 16-alpine
+
+primary:
+  extraEnvVars:
+    - name: POSTGRES_USER
+      value: "dim_user"
+    - name: POSTGRES_PASSWORD
+      value: "dim_pass"
+    - name: POSTGRES_DB
+      value: "dim_data"
+
+persistence:
+  size: 2Gi
+
+resources:
+  limits:
+    memory: 1Gi
+  requests:
+    memory: 512Mi
+
+# No additional Helm templating logic – the manifest below contains the command flags.

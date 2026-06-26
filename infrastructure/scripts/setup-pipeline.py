@@ -91,20 +91,6 @@ def setup_trino_tables():
          print("❌ Failed to create view!")
          sys.exit(1)
 
-    # 4. Seed server_config
-    seed_sql = """
-    INSERT INTO iceberg.monitoring.server_config (server_id, server_name, ip, province, station) VALUES
-    (101, 'prod-web-01', '192.168.1.10', 'TPHCM', 'Tram Quan 1'),
-    (102, 'prod-web-02', '192.168.1.11', 'TPHCM', 'Tram Quan 1'),
-    (103, 'prod-db-01', '192.168.1.20', 'Ha Noi', 'Tram Cau Giay'),
-    (104, 'prod-db-02', '192.168.1.21', 'Ha Noi', 'Tram Cau Giay'),
-    (105, 'stage-app-01', '172.16.5.10', 'Da Nang', 'Tram Hai Chau')
-    """
-    print("   🌱 Seeding server_config Dim data...")
-    if not run_trino(seed_sql):
-         print("❌ Failed to seed configuration data!")
-         sys.exit(1)
-         
     print("✅ Trino schema & tables setup completed successfully!")
 
 def configure_nifi():
@@ -164,22 +150,44 @@ def compile_and_deploy_flink():
         sys.exit(1)
 
     # Run Flink Job via REST API
-    print("🚀 Submitting Flink Job...")
     run_url = f"http://localhost:8081/jars/{jar_id}/run"
-    run_payload = {
+    
+    # 1. Run Flink Ingestion Job
+    print("🚀 Submitting Flink Ingestion Job...")
+    run_payload_ingest = {
+        "entryClass": "com.company.lakehouse.Main",
         "flinkConfiguration": {
-            "pipeline.classpaths": "file:///opt/flink/usrlib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar;file:///opt/flink/usrlib/flink-sql-connector-hive-3.1.3_2.12-1.18.1.jar"
+            "pipeline.classpaths": "file:///opt/flink/usrlib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar;file:///opt/flink/usrlib/flink-sql-connector-hive-3.1.3_2.12-1.18.1.jar;file:///opt/flink/usrlib/flink-sql-connector-postgres-cdc-3.1.1.jar"
         }
     }
     try:
-        r_run = requests.post(run_url, json=run_payload)
+        r_run = requests.post(run_url, json=run_payload_ingest)
         if r_run.status_code != 200:
-            print(f"❌ Failed to submit Flink job: {r_run.status_code} - {r_run.text}")
+            print(f"❌ Failed to submit Flink Ingestion job: {r_run.status_code} - {r_run.text}")
             sys.exit(1)
         run_res = r_run.json()
-        print(f"✅ Flink job submitted successfully! Job ID: {run_res.get('jobid')}")
+        print(f"✅ Flink Ingestion job submitted successfully! Job ID: {run_res.get('jobid')}")
     except Exception as e:
-        print(f"❌ Exception submitting Flink job: {e}")
+        print(f"❌ Exception submitting Flink Ingestion job: {e}")
+        sys.exit(1)
+
+    # 2. Run Flink CDC Job
+    print("🚀 Submitting Flink CDC Job...")
+    run_payload_cdc = {
+        "entryClass": "com.company.lakehouse.CdcMain",
+        "flinkConfiguration": {
+            "pipeline.classpaths": "file:///opt/flink/usrlib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar;file:///opt/flink/usrlib/flink-sql-connector-hive-3.1.3_2.12-1.18.1.jar;file:///opt/flink/usrlib/flink-sql-connector-postgres-cdc-3.1.1.jar"
+        }
+    }
+    try:
+        r_run = requests.post(run_url, json=run_payload_cdc)
+        if r_run.status_code != 200:
+            print(f"❌ Failed to submit Flink CDC job: {r_run.status_code} - {r_run.text}")
+            sys.exit(1)
+        run_res = r_run.json()
+        print(f"✅ Flink CDC job submitted successfully! Job ID: {run_res.get('jobid')}")
+    except Exception as e:
+        print(f"❌ Exception submitting Flink CDC job: {e}")
         sys.exit(1)
 
 def create_kafka_topic():
