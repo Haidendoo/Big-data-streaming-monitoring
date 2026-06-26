@@ -6,6 +6,7 @@ kubectl create namespace lakehouse --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace ingestion --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace streaming --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace orchestration --dry-run=client -o yaml | kubectl apply -f -
 
 # Loại bỏ các repos cũ không dùng nữa (Bitnami, Cetic)
 helm repo remove bitnami 2>/dev/null || true
@@ -58,5 +59,11 @@ helm upgrade --install flink $HELM_ROOT/flink -n streaming -f $HELM_ROOT/flink/v
 echo "Deploying Monitoring Stack..."
 helm upgrade --install prometheus prometheus-community/prometheus -n monitoring -f $HELM_ROOT/prometheus/values.yaml
 helm upgrade --install grafana grafana/grafana -n monitoring -f $HELM_ROOT/grafana/values.yaml
+
+# 8. Batch Layer (Spark, Airflow, Metabase)
+echo "Deploying Batch Layer (Spark, Airflow, Metabase)..."
+kubectl apply -f $HELM_ROOT/spark/spark-distributed-manifest.yaml
+kubectl apply -f $HELM_ROOT/airflow/airflow-manifest.yaml
+kubectl apply -f $HELM_ROOT/metabase/metabase-manifest.yaml
 
 echo "✅ Hoàn tất triển khai vĩnh viễn!"

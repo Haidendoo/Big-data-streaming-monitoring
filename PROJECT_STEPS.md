@@ -25,8 +25,8 @@ gantt
     Phát triển Flink Stream (Old Schema)  :done, 2026-06-21, 2d
     Cập nhật Flink Stream (New Raw Table) :active, 2026-06-23, 1d
     section Phase 6: Batch & Maintenance
-    Xây dựng Spark Batch (1h) & Airflow   :2026-06-24, 1d
-    DAG Compaction gộp file nhỏ           :2026-06-24, 1d
+    Xây dựng Spark Batch (1h) & Airflow   :done, 2026-06-24, 1d
+    DAG Compaction gộp file nhỏ           :done, 2026-06-24, 1d
     section Phase 7: Serving & Alerting
     Trino Query & Realtime Dashboard      :active, 2026-06-25, 1d
     Dashboard 2 BI & Alertmanager Đa Kênh  :2026-06-25, 1d
@@ -91,13 +91,17 @@ gantt
 
 ---
 
-### 🟥 Bước 6: Phát triển luồng Batch Layer & Compaction (Airflow & Spark) - **[0% HOÀN THÀNH]**
-- [ ] **Xây dựng Spark Batch Job (1 giờ/lần):**
+### 🟩 Bước 6: Phát triển luồng Batch Layer & Compaction (Airflow & Spark) - **[HOÀN THÀNH INFRA]**
+- [x] **Xây dựng Spark Batch Job (1 giờ/lần):**
   - Đọc delta dữ liệu từ `Bảng Log Thô (Fact)`, thực hiện `JOIN` với `Bảng Cấu Hình (Dim)` để tính toán KPI trung bình vùng miền.
   - Làm giàu và ghi kết quả tổng hợp vào `Bảng KPI Tổng Hợp (Gold)`.
-- [ ] **Thiết lập Maintenance Compaction Job (00:00 hàng ngày):**
+- [x] **Thiết lập Maintenance Compaction Job (00:00 hàng ngày):**
   - Chạy định kỳ vào nửa đêm để gộp các file Parquet nhỏ phân mảnh của bảng Log Thô thành các file lớn nhằm tối ưu hóa I/O bằng cách gọi: `CALL catalog.system.rewrite_data_files(...)`.
   - Lập lịch và tự động kích hoạt cả hai job Spark trên thông qua **Apache Airflow**.
+- [x] **Triển khai hạ tầng batch distributed:**
+  - Spark Standalone trong namespace `orchestration` gồm `1 Master + 3 Workers`.
+  - Apache Airflow 3 quản lý 2 DAG: batch KPI mỗi giờ và compaction hằng ngày.
+  - Metabase BI kết nối Trino để truy vấn bảng Gold `kpi_summary`.
 
 ---
 
@@ -116,5 +120,5 @@ gantt
 ## 📈 Trạng thái Dự án hiện tại
 
 - **Hạ tầng (Infra):** **100% HOÀN THÀNH**
-- **Luồng dữ liệu (Data Pipeline):** **90% HOÀN THÀNH** (NiFi $\rightarrow$ MinIO/Kafka $\rightarrow$ Flink & Flink CDC $\rightarrow$ Iceberg Fact & Dim tables hoàn tất chạy thực tế; Spark Batch và Airflow chưa phát triển)
+- **Luồng dữ liệu (Data Pipeline):** **95% HOÀN THÀNH** (NiFi $\rightarrow$ MinIO/Kafka $\rightarrow$ Flink & Flink CDC $\rightarrow$ Iceberg Fact & Dim tables hoàn tất chạy thực tế; Spark Batch, Airflow 3 và Metabase đã có infra/DAG, cần deploy để kiểm thử end-to-end trên cluster)
 - **Giám sát & Cảnh báo đa kênh:** **90% HOÀN THÀNH** (Grafana Realtime Dashboard 1 đã hoàn tất chuyển sang dùng server_id thô, Alertmanager & các kênh cảnh báo đã cấu hình hoàn chỉnh, truy cập UI ngoài hoạt động ổn định)

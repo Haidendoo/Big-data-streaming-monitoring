@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spark-defaults
+  namespace: orchestration
+data:
+  spark-defaults.conf: |
+    spark.master spark://spark-master:7077
+    spark.sql.catalog.iceberg org.apache.iceberg.spark.SparkCatalog
+    spark.sql.catalog.iceberg.type hive
+    spark.sql.catalog.iceberg.uri thrift://hive-metastore.lakehouse.svc.cluster.local:9083
+    spark.sql.catalog.iceberg.warehouse s3a://lakehouse/lakehouse/
+    spark.hadoop.fs.s3a.endpoint http://minio.lakehouse.svc.cluster.local:9000
+    spark.hadoop.fs.s3a.access.key admin
+    spark.hadoop.fs.s3a.secret.key password123
+    spark.hadoop.fs.s3a.path.style.access true
+    spark.hadoop.fs.s3a.impl org.apache.hadoop.fs.s3a.S3AFileSystem
+    spark.sql.extensions org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
+    spark.jars.packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.2,org.apache.iceberg:iceberg-hive-metastore:1.5.2,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262
+    spark.executor.memory 512m
+    spark.executor.cores 1
+    spark.driver.memory 512m
+    spark.sql.shuffle.partitions 6
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-master
+  namespace: orchestration
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark
+      component: master
+  template:
+    metadata:
+      labels:
+        app: spark
+        component: master
+    spec:
+      enableServiceLinks: false
+      containers:
+      - name: spark-master
+        image: apache/spark:3.5.1
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SPARK_LOCAL_IP
+          value: "0.0.0.0"
+        - name: SPARK_MASTER_IP_REAL
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        command:
+        - /opt/spark/bin/spark-class
+        args:
+        - org.apache.spark.deploy.master.Master
+        - --host
+        - $(SPARK_MASTER_IP_REAL)
+        - --port
+        - "7077"
+        - --webui-port
+        - "8080"
+        ports:
+        - containerPort: 7077
+          name: cluster
+        - containerPort: 8080
+          name: webui
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: spark-defaults
+          mountPath: /opt/spark/conf/spark-defaults.conf
+          subPath: spark-defaults.conf
+      volumes:
+      - name: spark-defaults
+        configMap:
+          name: spark-defaults
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-master
+  namespace: orchestration
+spec:
+  selector:
+    app: spark
+    component: master
+  ports:
+  - name: cluster
+    port: 7077
+    targetPort: 7077
+  - name: webui
+    port: 7070
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-ui
+  namespace: orchestration
+spec:
+  type: LoadBalancer
+  selector:
+    app: spark
+    component: master
+  ports:
+  - name: webui
+    port: 7070
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: spark-worker
+  namespace: orchestration
+spec:
+  serviceName: spark-worker
+  replicas: 3
+  selector:
+    matchLabels:
+      app: spark
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: spark
+        component: worker
+    spec:
+      enableServiceLinks: false
+      containers:
+      - name: spark-worker
+        image: apache/spark:3.5.1
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SPARK_LOCAL_IP
+          value: "0.0.0.0"
+        - name: SPARK_WORKER_IP_REAL
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        command:
+        - /opt/spark/bin/spark-class
+        args:
+        - org.apache.spark.deploy.worker.Worker
+        - spark://spark-master:7077
+        - --host
+        - $(SPARK_WORKER_IP_REAL)
+        - --cores
+        - "1"
+        - --memory
+        - 512m
+        - --webui-port
+        - "8081"
+        ports:
+        - containerPort: 8081
+          name: webui
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: spark-defaults
+          mountPath: /opt/spark/conf/spark-defaults.conf
+          subPath: spark-defaults.conf
+      volumes:
+      - name: spark-defaults
+        configMap:
+          name: spark-defaults
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-worker
+  namespace: orchestration
+spec:
+  clusterIP: None
+  selector:
+    app: spark
+    component: worker
+  ports:
+  - name: webui
+    port: 8081
+    targetPort: 8081

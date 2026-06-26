@@ -21,16 +21,3 @@ nifi:
     heap:
       xmx: 1G
       xms: 1G
-
-# Fix ZooKeeper image pull issue
-zookeeper:
-  enabled: true
-  image:
-    registry: public.ecr.aws
-    repository: bitnami/zookeeper
-    tag: latest
-  resources:
-    limits:
-      memory: 256Mi
-    requests:
-      memory: 128Mi

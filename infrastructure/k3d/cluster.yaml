@@ -18,6 +18,12 @@ ports:
   - port: 8080:8080
     nodeFilters:
       - loadbalancer
+  - port: 7070:7070
+    nodeFilters:
+      - loadbalancer
+  - port: 8082:8082
+    nodeFilters:
+      - loadbalancer
   - port: 8888:8888
     nodeFilters:
       - loadbalancer
@@ -28,6 +34,9 @@ ports:
     nodeFilters:
       - loadbalancer
   - port: 3000:80 # Mapping Grafana host 3000 to LB 80
+    nodeFilters:
+      - loadbalancer
+  - port: 3001:3001
     nodeFilters:
       - loadbalancer
 options:

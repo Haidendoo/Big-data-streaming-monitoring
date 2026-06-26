@@ -184,5 +184,5 @@ Hệ thống được cô lập tài nguyên chặt chẽ trên Kubernetes (k3s)
 * **Namespace `ingestion`**: Chứa Apache NiFi.
 * **Namespace `streaming`**: Chứa Apache Kafka, Apache Flink Cluster (chạy luồng streaming liên tục).
 * **Namespace `lakehouse`**: Chứa MinIO, Hive Metastore, Trino Engine.
-* **Namespace `orchestration`**: Chứa Apache Airflow và các Worker temporary của Apache Spark (chỉ khởi tạo khi có lịch chạy Batch 1 tiếng/lần rồi tự hủy để giải phóng tài nguyên CPU/RAM cho Cluster).
+* **Namespace `orchestration`**: Chứa Apache Airflow 3, Apache Spark Standalone theo mô hình distributed (`1 Master + 3 Workers`) và Metabase BI. Airflow lập lịch DAG batch mỗi giờ và DAG compaction hằng ngày, sau đó submit job vào Spark master.
 * **Namespace `monitoring`**: Chứa Prometheus, Prometheus Alertmanager, Grafana phục vụ việc thu thập metrics, lưu trữ log và định tuyến cảnh báo tới các kênh liên lạc (Slack, Discord, Telegram, Email).

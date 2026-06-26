@@ -115,7 +115,7 @@ alertmanager:
       - name: 'critical-alerts'
         slack_configs:
           - channel: '#alerts-critical'
-            api_url: 'YOUR_SLACK_CRITICAL_WEBHOOK_URL_HERE'
+            api_url: 'http://localhost/slack-critical'
             send_resolved: true
         telegram_configs:
           - bot_token: '123456789:replace-with-actual-token'
@@ -132,7 +132,7 @@ alertmanager:
       - name: 'warning-alerts'
         slack_configs:
           - channel: '#alerts-warning'
-            api_url: 'YOUR_SLACK_WARNING_WEBHOOK_URL_HERE'
+            api_url: 'http://localhost/slack-warning'
             send_resolved: true
         email_configs:
           - to: 'devs@company.com'
