@@ -32,14 +32,42 @@ ON CONFLICT (server_id) DO NOTHING;
 
 echo "🚀 Checking cluster status and waiting for pods to be fully ready..."
 
+# Auto-recover NiFi if it was scaled down (e.g. after cluster restart crash-loop)
+NIFI_REPLICAS=$(kubectl get deployment nifi -n ingestion -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+if [ "$NIFI_REPLICAS" -eq "0" ]; then
+  echo "🔧 NiFi deployment is scaled to 0. Scaling up to 1..."
+  kubectl scale deployment nifi -n ingestion --replicas=1
+fi
+
+# Ensure Flink TaskManager has 2 replicas (may be reset to 1 after cluster restart)
+FLINK_TM_REPLICAS=$(kubectl get deployment flink-taskmanager -n streaming -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")
+if [ "$FLINK_TM_REPLICAS" -lt "2" ]; then
+  echo "🔧 Flink TaskManager replicas=$FLINK_TM_REPLICAS. Scaling up to 2..."
+  kubectl scale deployment flink-taskmanager -n streaming --replicas=2
+fi
+
+# Ensure Kafka StatefulSet has 3 replicas (KRaft quorum requires all 3 voters)
+KAFKA_REPLICAS=$(kubectl get statefulset kafka -n streaming -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "3")
+if [ "$KAFKA_REPLICAS" -lt "3" ]; then
+  echo "🔧 Kafka StatefulSet replicas=$KAFKA_REPLICAS but KRaft needs 3. Scaling up to 3..."
+  kubectl scale statefulset kafka -n streaming --replicas=3
+  echo "⏳ Waiting 30s for Kafka pods to initialize..."
+  sleep 30
+fi
+
 # Waiting for services to be ready
-echo "⏳ Waiting for Trino, SFTP, NiFi, Flink, Kafka UI, Spark, Airflow, and Metabase pods..."
+echo "⏳ Waiting for Trino, SFTP, Flink, Kafka, Spark, Airflow, and Metabase pods..."
 kubectl wait --namespace lakehouse --for=condition=ready pod -l app.kubernetes.io/name=trino --timeout=300s
 kubectl wait --namespace ingestion --for=condition=ready pod -l app=sftp --timeout=300s
-kubectl wait --namespace ingestion --for=condition=ready pod -l app=nifi --timeout=300s
+# NiFi: wait up to 120s for it to be ready (we may have just scaled it up)
+if kubectl get pods -n ingestion -l app=nifi 2>/dev/null | grep -q 'Running\|Pending\|Init\|ContainerCreating'; then
+  kubectl wait --namespace ingestion --for=condition=ready pod -l app=nifi --timeout=120s || echo "⚠️  NiFi not ready in time, will configure after."
+else
+  echo "⚠️  NiFi pods not found, skipping NiFi wait."
+fi
 kubectl wait --namespace streaming --for=condition=ready pod -l app=kafka-ui --timeout=300s
 kubectl wait --namespace streaming --for=condition=ready pod -l app=kafka --timeout=300s
-kubectl wait --namespace streaming --for=condition=ready pod -l component=jobmanager --timeout=300s
+kubectl wait --namespace streaming --for=condition=ready pod -l app=flink,component=jobmanager --timeout=300s
 kubectl wait --namespace orchestration --for=condition=ready pod -l app=spark,component=master --timeout=300s
 kubectl wait --namespace orchestration --for=condition=ready pod -l app=spark,component=worker --timeout=300s
 kubectl wait --namespace orchestration --for=condition=ready pod -l app=airflow --timeout=600s
@@ -49,49 +77,38 @@ echo "✅ All pods are ready. Running setup-pipeline.py..."
 chmod +x infrastructure/scripts/setup-pipeline.py
 python3 infrastructure/scripts/setup-pipeline.py
 
+# Always reconfigure NiFi after setup (handles fresh pod with empty flow)
+echo "⚙️  Reconfiguring NiFi pipeline (idempotent)..."
+python3 nifi/configure_nifi.py && echo "✅ NiFi pipeline configured." || echo "⚠️  NiFi configure failed (non-fatal)."
+
 echo "🔄 Khởi động port-forward chạy ngầm cho các dịch vụ..."
-pkill -f "port-forward.*9090" || true
-pkill -f "port-forward.*9093" || true
-pkill -f "port-forward.*5433" || true
-pkill -f "port-forward.*7070" || true
-pkill -f "port-forward.*8082" || true
-pkill -f "port-forward.*3001" || true
-sleep 1
-
-# Luôn port-forward cho các ClusterIP services (không được expose qua k3d LoadBalancer)
-nohup kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 --address 0.0.0.0 >/dev/null 2>&1 &
-nohup kubectl port-forward -n monitoring svc/prometheus-alertmanager 9093:9093 --address 0.0.0.0 >/dev/null 2>&1 &
-nohup kubectl port-forward -n lakehouse svc/dim-data-postgresql 5433:5432 --address 0.0.0.0 >/dev/null 2>&1 &
-
-# Chỉ port-forward cho Spark, Airflow, Metabase nếu port tương ứng trên host chưa được k3d map (chưa có ai lắng nghe)
-if ! nc -z 127.0.0.1 7070 >/dev/null 2>&1; then
-  echo "⚡ Cổng 7070 chưa mở trên host, tiến hành port-forward cho Spark UI..."
-  nohup kubectl port-forward -n orchestration svc/spark-ui 7070:7070 --address 0.0.0.0 >/dev/null 2>&1 &
-else
-  echo "⚡ Cổng 7070 đã được k3d map sẵn trên máy host."
-fi
-
-if ! nc -z 127.0.0.1 8082 >/dev/null 2>&1; then
-  echo "🌬️ Cổng 8082 chưa mở trên host, tiến hành port-forward cho Airflow 3..."
-  nohup kubectl port-forward -n orchestration svc/airflow 8082:8082 --address 0.0.0.0 >/dev/null 2>&1 &
-else
-  echo "🌬️ Cổng 8082 đã được k3d map sẵn trên máy host."
-fi
-
-if ! nc -z 127.0.0.1 3001 >/dev/null 2>&1; then
-  echo "📊 Cổng 3001 chưa mở trên host, tiến hành port-forward cho Metabase..."
-  nohup kubectl port-forward -n orchestration svc/metabase 3001:3001 --address 0.0.0.0 >/dev/null 2>&1 &
-else
-  echo "📊 Cổng 3001 đã được k3d map sẵn trên máy host."
-fi
-
+pkill -f "kubectl port-forward" 2>/dev/null || true
 sleep 2
 
-echo "✨ Đã kích hoạt cổng truy cập từ máy host:"
-echo "📊 Prometheus UI: http://localhost:9090"
-echo "🔔 Alertmanager UI: http://localhost:9093"
-echo "🐘 PostgreSQL (dim_data) Port: localhost:5433 (DBeaver connection)"
-echo "   ↳ User: dim_user | Pass: dim_pass | DB: dim_data"
-echo "⚡ Spark UI: http://localhost:7070"
-echo "🌬️ Airflow 3: http://localhost:8082"
-echo "📊 Metabase: http://localhost:3001"
+kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 --address 0.0.0.0 >/dev/null 2>&1 &
+kubectl port-forward -n monitoring svc/prometheus-alertmanager 9093:9093 --address 0.0.0.0 >/dev/null 2>&1 &
+kubectl port-forward -n lakehouse svc/dim-data-postgresql 5433:5432 --address 0.0.0.0 >/dev/null 2>&1 &
+kubectl port-forward -n orchestration svc/spark-ui 7070:7070 --address 0.0.0.0 >/dev/null 2>&1 &
+kubectl port-forward -n orchestration svc/airflow 8082:8082 --address 0.0.0.0 >/dev/null 2>&1 &
+kubectl port-forward -n orchestration svc/metabase 3001:3001 --address 0.0.0.0 >/dev/null 2>&1 &
+
+# Tách khỏi terminal — process sống sau khi đóng terminal
+disown -a 2>/dev/null || true
+
+sleep 3
+
+echo ""
+echo "✨ Trạng thái cổng truy cập:"
+for entry in "9090:Prometheus:http://localhost:9090" \
+             "9093:Alertmanager:http://localhost:9093" \
+             "5433:PostgreSQL dim_data:localhost:5433 (user=dim_user pass=dim_pass)" \
+             "7070:Spark UI:http://localhost:7070" \
+             "8082:Airflow 3:http://localhost:8082" \
+             "3001:Metabase:http://localhost:3001"; do
+  port=$(echo "$entry" | cut -d: -f1)
+  name=$(echo "$entry" | cut -d: -f2)
+  url=$(echo "$entry" | cut -d: -f3-)
+  nc -z 127.0.0.1 "$port" >/dev/null 2>&1 \
+    && echo "  ✅ $name → $url" \
+    || echo "  ❌ $name → $url (FAILED)"
+done
