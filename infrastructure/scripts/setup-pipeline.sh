@@ -55,6 +55,10 @@ if [ "$KAFKA_REPLICAS" -lt "3" ]; then
   sleep 30
 fi
 
+# Ensure Airflow DAGs are updated from local dags/ directory
+echo "📂 Đồng bộ hóa Airflow DAGs từ thư mục dags/..."
+kubectl create configmap airflow-dags --from-file=dags/ -n orchestration --dry-run=client -o yaml | kubectl apply -f -
+
 # Waiting for services to be ready
 echo "⏳ Waiting for Trino, SFTP, Flink, Kafka, Spark, Airflow, and Metabase pods..."
 kubectl wait --namespace lakehouse --for=condition=ready pod -l app.kubernetes.io/name=trino --timeout=300s

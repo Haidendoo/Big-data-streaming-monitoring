@@ -63,6 +63,8 @@ helm upgrade --install grafana grafana/grafana -n monitoring -f $HELM_ROOT/grafa
 # 8. Batch Layer (Spark, Airflow, Metabase)
 echo "Deploying Batch Layer (Spark, Airflow, Metabase)..."
 kubectl apply -f $HELM_ROOT/spark/spark-distributed-manifest.yaml
+# Create ConfigMap from local dags/ directory dynamically
+kubectl create configmap airflow-dags --from-file=dags/ -n orchestration --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f $HELM_ROOT/airflow/airflow-manifest.yaml
 kubectl apply -f $HELM_ROOT/metabase/metabase-manifest.yaml
 
