@@ -101,6 +101,10 @@ disown -a 2>/dev/null || true
 
 sleep 3
 
+# Tự động cấu hình Metabase kết nối tới Trino
+echo "⚙️  Tự động cấu hình kết nối Trino cho Metabase..."
+python3 infrastructure/scripts/configure_metabase.py || echo "⚠️  Cấu hình Metabase gặp lỗi (non-fatal)."
+
 echo ""
 echo "✨ Trạng thái cổng truy cập:"
 for entry in "9090:Prometheus:http://localhost:9090" \

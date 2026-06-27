@@ -137,42 +137,42 @@ Sau khi deploy hoàn tất, toàn bộ các service đều được cấu hình 
 | **Flink UI (Job Monitoring)** | [http://localhost:8081](http://localhost:8081) | Không có | `streaming` | LoadBalancer |
 | **Spark Master UI** | [http://localhost:7070](http://localhost:7070) | Không có | `orchestration` | LoadBalancer |
 | **Apache Airflow 3** | [http://localhost:8082](http://localhost:8082) | `admin` / `admin` | `orchestration` | LoadBalancer |
-| **Metabase BI** | [http://localhost:3001](http://localhost:3001) | Tạo user lần đầu | `orchestration` | LoadBalancer |
-| **Prometheus (Metrics UI)** | [http://localhost:9090](http://localhost:9090) | Không có | `monitoring` | Port-Forward |
-| **Alertmanager (Alerting UI)** | [http://localhost:9093](http://localhost:9093) | Không có | `monitoring` | Port-Forward |
-| **PostgreSQL (dim_data DB)** | `localhost:5433` | User: `dim_user` / Pass: `dim_pass` | `lakehouse` | Port-Forward |
+  | **Metabase BI** | [http://localhost:3001](http://localhost:3001) | Tạo user lần đầu | `orchestration` | LoadBalancer |
+  | **Prometheus (Metrics UI)** | [http://localhost:9090](http://localhost:9090) | Không có | `monitoring` | Port-Forward |
+  | **Alertmanager (Alerting UI)** | [http://localhost:9093](http://localhost:9093) | Không có | `monitoring` | Port-Forward |
+  | **PostgreSQL (dim_data DB)** | `localhost:5433` | User: `dim_user` / Pass: `dim_pass` | `lakehouse` | Port-Forward |
 
-> [!NOTE]
-> Cổng truy cập cho **Prometheus**, **Alertmanager** và **PostgreSQL (dim_data)** được tự động kích hoạt chạy ngầm sau khi chạy script `./infrastructure/scripts/setup-pipeline.sh`. 
-> Đối với **Spark Master UI**, **Airflow 3** và **Metabase**, script sẽ tự động kiểm tra xem cổng tương ứng trên máy host đã được k3d map sẵn chưa; nếu chưa (chẳng hạn như chạy trên cụm k3d cũ chưa được khởi tạo lại), script sẽ tự động khởi chạy cổng port-forward dự phòng ngầm.
-> Nếu cần khởi động lại thủ công tất cả các cổng từ terminal máy host, bạn có thể chạy:
-> ```bash
-> kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 --address 0.0.0.0 &
-> kubectl port-forward -n monitoring svc/prometheus-alertmanager 9093:9093 --address 0.0.0.0 &
-> kubectl port-forward -n lakehouse svc/dim-data-postgresql 5433:5432 --address 0.0.0.0 &
-> # Chạy thêm các lệnh này nếu cụm k3d cũ của bạn chưa map sẵn port:
-> kubectl port-forward -n orchestration svc/spark-ui 7070:7070 --address 0.0.0.0 &
-> kubectl port-forward -n orchestration svc/airflow 8082:8082 --address 0.0.0.0 &
-> kubectl port-forward -n orchestration svc/metabase 3001:3001 --address 0.0.0.0 &
-> ```
+  > [!NOTE]
+  > Cổng truy cập cho **Prometheus**, **Alertmanager** và **PostgreSQL (dim_data)** được tự động kích hoạt chạy ngầm sau khi chạy script `./infrastructure/scripts/setup-pipeline.sh`. 
+  > Đối với **Spark Master UI**, **Airflow 3** và **Metabase**, script sẽ tự động kiểm tra xem cổng tương ứng trên máy host đã được k3d map sẵn chưa; nếu chưa (chẳng hạn như chạy trên cụm k3d cũ chưa được khởi tạo lại), script sẽ tự động khởi chạy cổng port-forward dự phòng ngầm.
+  > Nếu cần khởi động lại thủ công tất cả các cổng từ terminal máy host, bạn có thể chạy:
+  > ```bash
+  > kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 --address 0.0.0.0 &
+  > kubectl port-forward -n monitoring svc/prometheus-alertmanager 9093:9093 --address 0.0.0.0 &
+  > kubectl port-forward -n lakehouse svc/dim-data-postgresql 5433:5432 --address 0.0.0.0 &
+  > # Chạy thêm các lệnh này nếu cụm k3d cũ của bạn chưa map sẵn port:
+  > kubectl port-forward -n orchestration svc/spark-ui 7070:7070 --address 0.0.0.0 &
+  > kubectl port-forward -n orchestration svc/airflow 8082:8082 --address 0.0.0.0 &
+  > kubectl port-forward -n orchestration svc/metabase 3001:3001 --address 0.0.0.0 &
+  > ```
 
-> [!IMPORTANT]
-> **Lưu ý đối với Apache NiFi:** NiFi bắt buộc phải truy cập bằng giao thức **HTTPS**. Do chứng chỉ là tự ký, trình duyệt sẽ đưa ra cảnh báo bảo mật. Hãy chọn **Advanced** -> **Proceed to localhost (unsafe)** để tiếp tục truy cập.
+  > [!IMPORTANT]
+  > **Lưu ý đối với Apache NiFi:** NiFi bắt buộc phải truy cập bằng giao thức **HTTPS**. Do chứng chỉ là tự ký, trình duyệt sẽ đưa ra cảnh báo bảo mật. Hãy chọn **Advanced** -> **Proceed to localhost (unsafe)** để tiếp tục truy cập.
 
----
+  ---
 
-## 🕹️ Hướng dẫn Chạy Demo Chi tiết (End-to-End)
+  ## 🕹️ Hướng dẫn Chạy Demo Chi tiết (End-to-End)
 
-Dưới đây là các bước chạy thử nghiệm hệ thống để kiểm chứng luồng dữ liệu tự động đổ về Lakehouse.
+  Dưới đây là các bước chạy thử nghiệm hệ thống để kiểm chứng luồng dữ liệu tự động đổ về Lakehouse.
 
-### Bước 1: Tạo dữ liệu giám sát giả lập (Mock Data)
-Hệ thống cung cấp một script Python để tạo các tệp chỉ số hiệu năng máy chủ cục bộ (định dạng CSV hoặc XML luân phiên ngẫu nhiên) và tự động tải chúng lên máy chủ SFTP trong cluster:
+  ### Bước 1: Tạo dữ liệu giám sát giả lập (Mock Data)
+  Hệ thống cung cấp một script Python để tạo các tệp chỉ số hiệu năng máy chủ cục bộ (định dạng CSV hoặc XML luân phiên ngẫu nhiên) và tự động tải chúng lên máy chủ SFTP trong cluster:
 
-Chạy script tạo mock data:
-```bash
-python3 infrastructure/scripts/generate-mock-data.py
-```
-*Mỗi lần chạy script này sẽ sinh ra dữ liệu cho 5 máy chủ giám sát (`prod-web-01`, `prod-web-02`, v.v.) và đẩy qua SFTP.*
+  Chạy script tạo mock data:
+  ```bash
+  python3 infrastructure/scripts/generate-mock-data.py
+  ```
+  *Mỗi lần chạy script này sẽ sinh ra dữ liệu cho 5 máy chủ giám sát (`prod-web-01`, `prod-web-02`, v.v.) và đẩy qua SFTP.*
 
 ### Bước 2: Quan sát luồng Ingestion & Processing
 1. **Apache NiFi:** Truy cập [https://localhost:8443/nifi](https://localhost:8443/nifi). Bạn sẽ thấy NiFi tự động phát hiện file trên SFTP, đẩy file thô vào MinIO bucket `lakehouse` dưới folder `raw-file/` theo định dạng phân cấp thời gian (`raw-file/yyyy/mm/dd/HH/`), và phát hành một sự kiện JSON thông báo lên topic `file-arrival-events` của Kafka.

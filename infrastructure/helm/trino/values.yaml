@@ -2,12 +2,14 @@
 image:
   repository: trinodb/trino
   tag: "443"
+  pullPolicy: IfNotPresent
 
 # Chạy Trino dạng single node để tiết kiệm RAM
 server:
   workers: 2
   coordinatorExtraConfig: |
     node-scheduler.include-coordinator=true
+    protocol.v1.alternate-header-name=Presto
 
 # Cấu hình Iceberg Connector
 additionalCatalogs:
@@ -37,6 +39,8 @@ jmx:
   exporter:
     enabled: true
     port: 5556
+    image:
+      pullPolicy: IfNotPresent
     configProperties: |
       hostPort: 127.0.0.1:9080
       rules: []
