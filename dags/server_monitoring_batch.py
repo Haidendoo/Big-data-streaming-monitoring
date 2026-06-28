@@ -48,6 +48,15 @@ JOB_VOLUME_MOUNT = k8s.V1VolumeMount(
     read_only=True,
 )
 
+IVY_VOLUME = k8s.V1Volume(
+    name="spark-ivy-cache",
+    persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name="spark-ivy-pvc"),
+)
+IVY_VOLUME_MOUNT = k8s.V1VolumeMount(
+    name="spark-ivy-cache",
+    mount_path="/tmp/.ivy",
+)
+
 default_args = {
     "owner": "data-platform",
     "depends_on_past": False,
@@ -72,8 +81,8 @@ with DAG(
         cmds=["/opt/spark/bin/spark-submit"],
         arguments=SPARK_BASE_ARGS
         + ["/opt/spark/jobs/server_monitoring_kpi_batch.py", "--lookback-hours", "1"],
-        volumes=[JOB_VOLUME],
-        volume_mounts=[JOB_VOLUME_MOUNT],
+        volumes=[JOB_VOLUME, IVY_VOLUME],
+        volume_mounts=[JOB_VOLUME_MOUNT, IVY_VOLUME_MOUNT],
         env_vars=[
             k8s.V1EnvVar(name="SPARK_MASTER_PORT", value="7077"),
             k8s.V1EnvVar(
@@ -108,8 +117,8 @@ with DAG(
         image="apache/spark:3.5.1",
         cmds=["/opt/spark/bin/spark-submit"],
         arguments=SPARK_BASE_ARGS + ["/opt/spark/jobs/iceberg_compaction.py"],
-        volumes=[JOB_VOLUME],
-        volume_mounts=[JOB_VOLUME_MOUNT],
+        volumes=[JOB_VOLUME, IVY_VOLUME],
+        volume_mounts=[JOB_VOLUME_MOUNT, IVY_VOLUME_MOUNT],
         env_vars=[
             k8s.V1EnvVar(name="SPARK_MASTER_PORT", value="7077"),
             k8s.V1EnvVar(

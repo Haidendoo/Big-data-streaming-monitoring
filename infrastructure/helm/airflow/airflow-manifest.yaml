@@ -113,7 +113,20 @@ data:
             """
             CALL iceberg.system.rewrite_data_files(
               table => 'monitoring.raw_sftp_table',
-              options => map('target-file-size-bytes', '134217728')
+              options => map(
+                'target-file-size-bytes', '134217728',
+                'min-input-files', '2'
+              )
+            )
+            """
+        )
+
+        # Thêm thủ tục dọn dẹp file cũ không còn dùng trong Snapshots
+        spark.sql(
+            """
+            CALL iceberg.system.expire_snapshots(
+              table => 'monitoring.raw_sftp_table',
+              retain_last => 1
             )
             """
         )
